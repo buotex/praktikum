@@ -36,30 +36,40 @@ using std::placeholders::_1;
 struct
 EuclideanVSpaceFunctor {
 
+  template<typename Array>
+  struct ArrayTypeHelper {
+    typedef typename Array::value_type value_type;
+    static constexpr size_t N = std::tuple_size<Array>::value;
+    typedef value_type WeightType;
+    typedef std::array<value_type, N-1> MassType;
+    typedef std::pair<WeightType, MassType> ResultType;
+  };
   //saving the angles to indices 1 -- N-1
   //0 holds the length
   template <typename EdgeDescriptor, typename Graph>
     auto
     operator() (EdgeDescriptor && e, const Graph & g) const ->
-    decltype(boost::vertex_bundle_type<Graph>::type::location_)
+    typename ArrayTypeHelper<decltype(boost::vertex_bundle_type<Graph>::type::location_)>::ResultType
     {
 
       typedef typename boost::vertex_bundle_type<Graph>::type VertexType;
       typedef decltype(VertexType::location_) Tag;
+      typedef typename ArrayTypeHelper<decltype(VertexType::location_)>::ResultType ResultType;
+      static constexpr size_t N = ArrayTypeHelper<decltype(VertexType::location_)>::N ;
 
-      Tag results;
+      ResultType result;
       const Tag & x = boost::get(&VertexType::location_, g, boost::source(e, g));
       const Tag & y = boost::get(&VertexType::location_, g, boost::target(e, g));
 
       typename Tag::value_type dim0 = x[0] - y[0];
-      results[0] = pow(dim0, std::tuple_size<Tag>::value);
+      result.first = pow(dim0, std::tuple_size<Tag>::value);
 
-      for (size_t i = 1; i < std::tuple_size<Tag>::value; ++i) {
-        results[i] = atan2((x[i] - y[i]), dim0) ;
-        results[0] += pow(results[i],std::tuple_size<Tag>::value);
+      for (size_t i = 0; i < N-1; ++i) {
+        result.second[i] = atan2((x[i+1] - y[i+1]), dim0) ;
+        result.first += pow(result.second[i],N);
       }
-      results[0] = pow(results[0], 1./std::tuple_size<Tag>::value);  
-      return results;
+      result.first = pow(result.first, 1./N);  
+      return result;
     }
 };
 
@@ -130,64 +140,68 @@ class CalculateBins {
 
 
 };
-//TODO: crashes in higher dimensions!?
-template <typename ForwardIterator, typename B>
-auto
-createDenseHistogram(ForwardIterator first, ForwardIterator last, const B & binLimits, bool normalize = true) -> 
-std::vector<std::pair<typename std::iterator_traits<ForwardIterator>::value_type::value_type, std::list<size_t> > >
-{
-  //different Histogramfunctions should be considered, this version has its bins defined by the smallest difference between 2
-  //objects.
+struct
+CreateDenseHistogram {
+  //TODO: crashes in higher dimensions!?
+  template <typename ForwardIterator, typename B>
+    auto
+    operator()(ForwardIterator first, ForwardIterator last, const B & binLimits, bool normalize = true) -> 
+ std::vector<std::pair<typename std::iterator_traits<ForwardIterator>::value_type::first_type, std::list<size_t> > >
+    {
+      //different Histogramfunctions should be considered, this version has its bins defined by the smallest difference between 2
+      //objects.
 
-  typedef typename std::iterator_traits<ForwardIterator>::value_type TagType;
-  typedef typename TagType::value_type MassType;
-  typedef std::vector<std::pair<MassType, std::list<size_t> > > HistogramType;
+      typedef typename std::iterator_traits<ForwardIterator>::value_type TagType;
 
-  enum { 
-    numDims = std::tuple_size<B>::value
-  };
+      typedef typename TagType::first_type WeightType;
+      typedef typename TagType::second_type MassType;
+      typedef std::vector<std::pair<WeightType, std::list<size_t> > > HistogramType;
 
-  std::array<std::size_t, numDims > numBinsInDim; 
-  std::size_t numBins = 1;
-  for (size_t i = 0; i < numDims; ++i) {
-    numBinsInDim[i] = (size_t) ceil((binLimits[i].highLim_ - binLimits[i].lowLim_) / binLimits[i].binSize_);
-    numBins *= numBinsInDim[i];
-  }
+      enum { 
+        numDims = std::tuple_size<MassType>::value
+      };
 
-  HistogramType bins(numBins);
+      std::array<std::size_t, numDims > numBinsInDim; 
+      std::size_t numBins = 1;
+      for (size_t i = 0; i < numDims; ++i) {
+        numBinsInDim[i] = (size_t) ceil((binLimits.highLim_[i] - binLimits.lowLim_[i]) / binLimits.binSize_[i]);
+        numBins *= numBinsInDim[i];
+      }
 
-  MassType invertSum = 0.;
-  if (normalize) {
-  MassType sum = 0.;
-    std::for_each(first, last, [&sum] (const TagType & tag)->MassType{return sum += tag[0]; });
-    invertSum = (sum)?1./ sum:1.;
-  } else {
-    invertSum = 1.;
-  }
+      HistogramType bins(numBins);
 
-  //Put edges into bins, canonical hash function: equidistant bins.
-  //
+      WeightType invertSum = 0.;
+      if (normalize) {
+        WeightType sum = 0.;
+        std::for_each(first, last, [&sum] (const TagType & tag)->WeightType{return sum += tag.first; });
+        invertSum = (sum)?1./ sum:1.;
+      } else {
+        invertSum = 1.;
+      }
 
-  size_t counter = 0;
-  for(; first != last; ++first) {
-    const TagType & edge = *first;
+      //Put edges into bins, canonical hash function: equidistant bins.
+      //
 
-    std::size_t index = 0;
-    std::size_t offset = 1;
-   
-    for (size_t i = 0; i < numDims; ++i) {  
-      index += offset * ((size_t) ((edge[i+1] - binLimits[i].lowLim_) / binLimits[i].binSize_) % numBinsInDim[i]);
-      offset *= numBinsInDim[i];
+      size_t counter = 0;
+      for(; first != last; ++first) {
+        const TagType & edge = *first;
+
+        std::size_t index = 0;
+        std::size_t offset = 1;
+
+        for (size_t i = 0; i < numDims; ++i) {  
+          index += offset * ((size_t) ((edge.second[i] - binLimits.lowLim_[i]) / binLimits.binSize_[i]) % numBinsInDim[i]);
+          offset *= numBinsInDim[i];
+        }
+
+        //std::cout << index << std::endl;
+        bins[index].first += edge.first * invertSum;
+        bins[index].second.push_back(counter);
+        ++counter;
+      }
+      return bins;
     }
-   
-    //std::cout << index << std::endl;
-    bins[index].first += edge[0] * invertSum;
-    bins[index].second.push_back(counter);
-    ++counter;
-  }
-  return bins;
-}
-
+};
 
 
 template <typename EdgeExtractor, typename Graph>
@@ -199,19 +213,19 @@ EmdMod {
 
   typedef typename boost::graph_traits<Graph>::edge_descriptor edge_descriptor;
   typedef typename std::result_of<EdgeExtractor(edge_descriptor &&, const Graph &)>::type ExtractedEdgeType;
-  typedef typename ExtractedEdgeType::value_type MassType;
+  typedef typename ExtractedEdgeType::second_type MassType;
+  typedef typename std::vector<ExtractedEdgeType>::const_iterator ForwardIterator;
 
-  typedef std::vector<std::pair<MassType, std::list<size_t> > > HistogramType;
-
+  typedef typename std::result_of<CreateDenseHistogram(ForwardIterator, ForwardIterator, const BinLimits<MassType> &, bool)>::type HistogramType;
+  typedef typename HistogramType::value_type::first_type WeightType;
   typedef EmdResult<Graph,size_t> ResultType;
 
   template <typename ForwardIterator>
     HistogramType
     createHistogram(ForwardIterator first, ForwardIterator last) {
-      std::array<BinLimits<MassType>,1> binLimits;
-      binLimits.fill(BinLimits<MassType>(-M_PI, 2. * M_PI / (double)N_, M_PI));
 
-      HistogramType hist = createDenseHistogram(first, last, binLimits, true);
+      BinLimits<MassType> binLimits({{-M_PI}}, {{2. * M_PI/(double) N_}}, {{M_PI}});
+      HistogramType hist = CreateDenseHistogram()(first, last, binLimits, true);
       return hist;
     }
 
@@ -219,16 +233,16 @@ EmdMod {
   ResultType
     calcEmd (const HistogramType & v1, const HistogramType & v2) {
 
-      std::vector<MassType> q(N_);
-      std::vector<MassType> p(N_);
+      std::vector<WeightType> q(N_);
+      std::vector<WeightType> p(N_);
       std::transform(v1.cbegin(), v1.cend(), q.begin(), [](const typename HistogramType::value_type& val){return val.first;} );
       std::transform(v2.cbegin(), v2.cend(), p.begin(), [](const typename HistogramType::value_type& val){return val.first;} );
 
       ResultType result; 
 
-      std::vector<MassType> f(N_);
-      MassType cumQ = 0;
-      MassType cumP = 0;
+      std::vector<WeightType> f(N_);
+      WeightType cumQ = 0;
+      WeightType cumP = 0;
 
       for (size_t i = 0; i < N_; ++i) {
         cumQ += q[i];
@@ -237,7 +251,7 @@ EmdMod {
       }
 
 
-      boost::accumulators::accumulator_set<MassType, boost::accumulators::stats<boost::accumulators::tag::weighted_median(boost::accumulators::with_p_square_cumulative_distribution) >, MassType > 
+      boost::accumulators::accumulator_set<WeightType, boost::accumulators::stats<boost::accumulators::tag::weighted_median(boost::accumulators::with_p_square_cumulative_distribution) >, WeightType> 
         acc( boost::accumulators::tag::weighted_p_square_cumulative_distribution::num_cells = (size_t) (sqrt(double(N_))) );
 
       for (size_t i = 0; i < N_; ++i) {
@@ -295,8 +309,8 @@ struct EMD {
       typedef typename EVF::HistogramType HistogramType;
       typedef typename EVF::ResultType ResultType;
     };
-   template <typename EdgeExtractor, template <class, class> class EmdVariantFunctor, typename Graph> 
-   struct TraitsHelper:Traits<EdgeExtractor, EmdVariantFunctor<EdgeExtractor, Graph>, Graph> {};
+  template <typename EdgeExtractor, template <class, class> class EmdVariantFunctor, typename Graph> 
+    struct TraitsHelper:Traits<EdgeExtractor, EmdVariantFunctor<EdgeExtractor, Graph>, Graph> {};
 
   template <class EdgeExtractor, typename EmdVariantFunctor, typename Graph>
     auto
