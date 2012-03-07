@@ -1,20 +1,42 @@
 #include <iostream>
+#ifndef _DATATYPES_HPP__
+#define _DATATYPES_HPP__
+template<typename HistogramIndexType>
 struct Match {
-  size_t iQ_;
-  size_t iP_;
+  HistogramIndexType histIndex1_;
+  HistogramIndexType histIndex2_;
   double fij_;
-  Match(size_t iQ, size_t iP, double fij):iQ_(iQ), iP_(iP), fij_(fij) {}
+  Match(HistogramIndexType iQ, HistogramIndexType iP, double fij):histIndex1_(iQ), histIndex2_(iP), fij_(fij) {}
 };
+
+std::ostream & operator<<(std::ostream & os, const std::pair<typename std::vector<Match<size_t> >::const_iterator, typename std::vector<Match<size_t> >::const_iterator> & matchiter) {
+  os << "Top matches: " << "\n";
+  std::for_each(matchiter.first, matchiter.second, [&](const Match<size_t> & match) {
+    os << match.histIndex1_ << " -- " << match.histIndex2_ << " : " <<  match.fij_ << "\t";
+    });
+  os << "\n";
+  return os;
+}
+
+template <typename Graph, typename HistogramIndexType>
 struct EmdResult {
-  size_t index1_;
-  size_t index2_;
-  std::vector<Match> fij_;
+  Graph * g1_;
+  Graph * g2_;
+
+  std::vector<Match<HistogramIndexType> > fijVector_;
   double emd_;
+  
+  typedef typename std::vector<Match<HistogramIndexType> >::const_iterator IterType;
+  std::pair<IterType, IterType> getMaxElements(size_t i) {
+    std::size_t num = std::min(i, fijVector_.size()); 
+    std::nth_element(fijVector_.begin(), fijVector_.begin() + num, fijVector_.end(), [] (const Match<HistogramIndexType> & match1, const Match<HistogramIndexType> & match2){ return match1.fij_ > match2.fij_;});
+    return std::make_pair(fijVector_.cbegin(), fijVector_.cbegin() + num);
+  }
 };
 
-  std::ostream & operator<< (std::ostream & os, const EmdResult & result) {
-    os << "Earth Mover's Distance between " << result.index1_ << " and " << result.index2_ <<  " is equal to " << result.emd_ << std::endl;
-
+template <typename Graph, typename HistogramIndexType>
+  std::ostream & operator<< (std::ostream & os, const EmdResult<Graph, HistogramIndexType> & result) {
+    os << "Earth Mover's Distance between " << result.g1_ << " and " << result.g2_ <<  " is equal to " << result.emd_ << std::endl;
     return os;
   }
 
@@ -28,18 +50,19 @@ struct NodeWithLocation {
   NodeWithLocation(const NodeWithLocation & node) : location_(node.location_){}
   NodeWithLocation() {}
 };
+template <typename HistogramType>
 struct EmdGraphPropertyBundle {
   std::string name_;
-  std::vector<double> histogram_;
+  HistogramType histogram_;
 };
-
-
 
 template <typename value_type>
 struct BinLimits {
   value_type lowLim_;
   value_type binSize_;
   value_type highLim_;
+  BinLimits(const value_type lowLim, const value_type binSize, const value_type highLim): lowLim_(lowLim), binSize_(binSize), highLim_(highLim) {}
+  BinLimits() {}
 };
 
-
+#endif
