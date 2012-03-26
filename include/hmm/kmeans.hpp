@@ -1,128 +1,115 @@
-
-template <typename ValType>
-struct ArrayFunctor {
-  template <size_t N>
-  ValType & addTo(std::array<ValType, N> & arrX, const std::array<ValType, N> & arrY){
-    std::for_each(arrX.begin(), arrX.end(), arrY.cbegin(), [](ValType & varX, const ValType & varY) {varX += varY;});
-    return arrX;
-  }
-  template <size_t N, typename numericType>
-  ValType & divideBy(std::array<ValType, N> & arrX, numericType divisor) {
-    std::for_each(arrX.begin(), arrX.end(), [=](ValType & varX) {varX /= divisor;});
-    return arrX;
-  }
-  template <size_t N>
-  ValType distance(const std::array<ValType, N> & arrX, const std::array<ValType, N> & arrY) {
-    
-    ValType result = 0;
-    std::for_each(arrX.cbegin(), arrX.cend(), arrY.cbegin(), 
-                  [&result](const ValType & varX, const ValType & varY){result += pow((varX - varY), N);});
-
-    
-    return pow(result, 1./N);
-  }
-
-  template <size_t N, typename ForwardIterator, typename std::enable_if<std::is_same<typename ForwardIterator::value_type, ValType>::value,void>::type >
-  size_t findClosest(const std::array<ValType, N> & location, ForwardIterator first, ForwardIterator last) {
-    
-    size_t label = 0;
-    ValType minVal = distance(*first, location);
-    ++first;
-    size_t counter = 1;
-    for (; first != last; ++first, ++counter) {
-      if (distance(*first, location) < minVal) {
-        minVal = distance(*first, location);
-        label = counter;
-      }
-    }
-    return label;
-  }
-};
+#include <array>
+#include <armadillo>
+#ifndef __INCLUDE_HMM_KMEANS_HPP__
+#define __INCLUDE_HMM_KMEANS_HPP__
 
 
-template <typename ForwardIterator, typename LocationFunctor>
-std::vector<size_t>
-kmeansRandom(ForwardIterator first, ForwardIterator last, size_t numClusters, size_t maxIterations, LocationFunctor && func = ArrayFunctor<typename ForwardIterator::value_type>()){
 
-  typedef typename ForwardIterator::value_type LocationType;
-  std::vector<size_t> labels(std::distance(last,first));
-  std::vector<LocationType> means(numClusters);
-  std::vector<size_t> meanCounter(numClusters, 0);
-  
-  std::mt19937 rSeedEngine;
-  typedef std::uniform_int_distribution<size_t> Distribution;
-  //set random labels
-  std::for_each(labels.begin(), labels.end(), [&] (size_t & label) {label = Distribution(0, numClusters)(rSeedEngine);});
-
-  std::for_each(means.begin(), means.end(), [](LocationType & loc) {loc.fill(0);});
-  std::for_each(meanCounter.begin(), meanCounter.end(), [](size_t & counter) {counter = 0;});
-
-  //add to mean
-  std::for_each(first, last, labels.cbegin(), [&](const LocationType & loc, size_t label) {
-      func.addTo(means[label],loc);
-      ++meanCounter[label];
-      });
-
-  std::for_each(means.begin(), means.end(),meanCounter.cbegin(), [&func](LocationType & loc, size_t counter) {func.divideBy(loc, counter);});
-
-  return kmeansLoop(first, last, means, maxIterations - 1, func);
-}
-
-template <typename ForwardIterator, typename LocationFunctor>
-  std::vector<size_t>
-kmeansLoop(ForwardIterator first, ForwardIterator last, std::vector<typename ForwardIterator::value_type> && means, size_t maxIterations, LocationFunctor && func = ArrayFunctor<typename ForwardIterator::value_type>()) {
-
-  typedef typename ForwardIterator::value_type LocationType;
-  std::vector<size_t> labels(std::distance(last,first));
-
-  size_t checksum = 0;
-  size_t oldChecksum = 0;
+arma::urowvec
+kmeansLoop(const arma::mat & data, arma::mat & means, size_t maxIterations, size_t purgingThreshold) {
+  double checksum = 0;
+  double oldChecksum = 0;
   size_t counter = 0;
+  unsigned int numData = data.n_cols;
+  arma::urowvec labels = arma::urowvec(numData);
 
-  std::vector<size_t> meanCounter(means.size());
+  arma::mat meanCounter(1,means.n_cols);
+  
   while(1) {
-    checksum = 0;
+    for (unsigned int i = 0; i < data.n_cols; ++i) {
+      arma::mat differences = data.col(i) * arma::ones(1, means.n_cols) - means;
+      arma::rowvec norms = arma::zeros(1, means.n_cols);
+      for (unsigned int j = 0; j < means.n_cols; ++j) {
+        norms(j) = arma::norm(differences.col(j), 2);
+      }
+      double * smallestElem = std::min_element(norms.begin(), norms.end());
+      unsigned int label = (unsigned int)(smallestElem - norms.begin());
+      labels(i) = label;
+    }
 
-
-    //adjust to new clusters
-    std::for_each(first, last, labels.begin(), [&](const LocationType & loc, size_t & label) {
-        label = func.findClosest(loc, means.cbegin(), means.cend());
-        });
-    std::accumulate(labels.begin(), labels.end(), checksum);
-
+    checksum = sum(labels);
     if (checksum == oldChecksum || counter == maxIterations) break;
     ++counter;
     oldChecksum = checksum;
 
-    //calculate new means
-    std::for_each(means.begin(), means.end(), [&](LocationType & loc) {loc.fill(0);});
-    std::for_each(meanCounter.begin(), meanCounter.end(), [&](size_t & counter) {counter = 0;});
+    means.fill(0);
+    meanCounter.fill(0);
 
-    //add to mean
-    std::for_each(first, last, labels.cbegin(), [&](const LocationType & loc, size_t label) {
-        func.addTo(means[label],loc);
-        ++meanCounter[label];
-        });
-    //get mean
-    std::for_each(means.begin(), means.end(),meanCounter.cbegin(), [&](LocationType & loc, size_t counter) {func.divideBy(loc, counter);});
+    for (unsigned int i = 0; i < data.n_cols; ++i) {
+      unsigned int label = labels(i);
+      means.col(label) += data.col(i);
+      meanCounter(label) += 1;
+    }
+    arma::uvec tinyClusters = arma::find(meanCounter > (double)purgingThreshold);
+    if (tinyClusters.n_elem != means.n_cols) {
+    try{
+      meanCounter.print("meanCounter");
+      means.print("means");
+    means = means.cols(tinyClusters);
+    meanCounter = meanCounter.cols(tinyClusters);
+      meanCounter.print("meanCounter");
+      means.print("means");
+    }
+    catch(const std::logic_error & e) {
+      std::cout << "Purging :" << (double) purgingThreshold << std::endl;
+      meanCounter.print("meanCounter");
+      means.print("means");
+      tinyClusters.print("tiny");
+      std::cout << "size :" << means.n_cols << std::endl;
+      std::cout << "vecsize :" << meanCounter.n_elem << std::endl;
+      throw e;
+    }
+}
+    means /= (arma::ones(data.n_rows, 1) * meanCounter);
+
+
+
 
   }
-return labels;
 
+  return labels;
 }
-template <typename RandomAccessIterator, typename LocationFunctor>
-std::vector<size_t>
-kmeansWithSubset(RandomAccessIterator first, RandomAccessIterator last, size_t numClusters, size_t maxIterations, LocationFunctor && func = ArrayFunctor<typename RandomAccessIterator::value_type>()) {
-  size_t vecSize = std::distance(last, first);
-  typedef typename RandomAccessIterator::value_type LocationType;
-  std::vector<LocationType> subset(sqrt(vecSize));
+arma::urowvec
+kmeansRandom(const arma::mat & data, arma::mat & means, size_t maxIterations, size_t purgingThreshold) {
+
+  arma::urowvec labels(data.n_cols);
+  unsigned int numMaxClusters = means.n_cols;
+  arma::mat meanCounter(means.n_rows, numMaxClusters);
+
+
   std::mt19937 rSeedEngine;
-  typedef std::uniform_int_distribution<size_t> Distribution;
-  std::generate(subset.begin(), subset.end(), [&]() {return *(first + Distribution(0,vecSize)(rSeedEngine));});
-  std::vector<LocationType> means = kmeansRandom(subset.begin(), subset.end(), numClusters, maxIterations, func);
-  return kmeansLoop(first, last, means, maxIterations, func);
+  typedef std::uniform_int_distribution<unsigned int> Distribution;
+
+  std::for_each(labels.begin(), labels.end(), [&] (unsigned int & label) {label = Distribution(0, numMaxClusters-1)(rSeedEngine);});
+
+  means.fill(0);
+  meanCounter.fill(0);
+
+  for (unsigned int i = 0; i < data.n_cols; ++i) {
+    unsigned int label = labels(i);
+    means.col(label) += data.col(i);
+    (meanCounter.col(label)) += arma::ones(data.n_rows, 1);
+  }
+  means /= meanCounter;
+
+  return kmeansLoop(data, means, maxIterations - 1, purgingThreshold);
+
+}
+arma::urowvec
+kmeansWithSubset(const arma::mat & data, unsigned int numMaxClusters, size_t maxIterations, size_t purgingThreshold) {
+  unsigned int vecSize = data.n_cols;
+  arma::mat subset(data.n_rows, (unsigned int)sqrt(vecSize));
+  std::mt19937 rSeedEngine;
+  typedef std::uniform_int_distribution<unsigned int> Distribution;
+  for (unsigned int i = 0; i < subset.n_cols; ++i) {
+    unsigned int randIndex = Distribution(0, vecSize-1)(rSeedEngine);
+    subset.col(i) = data.col(randIndex);
+  }
+  arma::mat means = arma::mat(data.n_rows, numMaxClusters);
+  kmeansRandom(subset,means, maxIterations, purgingThreshold);
+  return kmeansLoop(data, means, maxIterations, purgingThreshold);
 
 }
 
 
-
+#endif

@@ -31,6 +31,10 @@ class GM {
   void
   setSigma(const arma::mat & sigma) {
     unsigned int d = sigma.n_rows;
+    arma::uvec nonZeroCount = arma::find(sigma != 0);
+    if (nonZeroCount.n_elem == 0) {
+      throw std::runtime_error("det(sigma) can't be zero");
+    }
     sigma_ = sigma;
     invSigma_ = arma::inv(sigma_);
     coeff_ = 1./std::sqrt(std::pow(2. * M_PI, d) * arma::det(sigma_));
@@ -58,11 +62,23 @@ class GMM {
   std::vector<GM> mixture_;
   arma::vec weights_;
   public:
+ GMM() {} 
+  GMM(const arma::mat& data, unsigned int kmin, unsigned int kmax) {
+    findMaxLikelihood(data, kmin, kmax);
+    }
+  arma::vec getWeights() {
+    return weights_;
+  }
+
   void
   updateGM(unsigned int index, double weight, const arma::vec & mu, const arma::mat & sigma) {
     weights_[index] = weight;
     mixture_[index].setMu(mu);
     mixture_[index].setSigma(sigma);
+  }
+  void
+  normalizeWeights() {
+    weights_ /= arma::accu(weights_);
   }
   size_t
   getNumComponents() {
@@ -97,7 +113,7 @@ double getProb(const arma::vec & datum) {
       //TODO:perhaps use a matrix for the data?
       //k == number of mixtures
   findMaxLikelihood(const arma::mat& data, unsigned int kmin, unsigned int kmax) {
-    
+    std::cout << "kmax" << kmax << std::endl; 
     unsigned int n = data.n_cols; //number of data elements;
     unsigned int d = data.n_rows; //dimensionality of the data
     unsigned int N = d * (d+1)/2;
@@ -130,7 +146,7 @@ double getProb(const arma::vec & datum) {
     }
     Lnew += knz/2. * log(n/12.) + (knz * N + knz) / 2.;
     Lnew -= arma::as_scalar(arma::sum(arma::log(u * a)));
-    while(knz >= kmin) {
+    while(1) {
       //std::cout << "knz: " << knz << std::endl;
       do {
         Lold = Lnew;
@@ -143,14 +159,25 @@ double getProb(const arma::vec & datum) {
           arma::uvec colId;
           colId << m;
           w(nonNull, colId) = w(nonNull, colId) / scalingVec.elem(nonNull);
+          arma::uvec failure= arma::find(w != w);
+          if (failure.n_elem > 0) {
+            std::cout << "m: " << m <<std::endl;
+            w.print("3");
+            scalingVec.print("scaling");
+            scalingVec.elem(nonNull).print("scalingmod");
+            u.print("u");
+            a.print("a");
+          for (size_t i = 0; i < mixtureCandidate.size(); ++i) 
+            mixtureCandidate[i].print("mixture");
+          }
+
+          //w.print("w");
           //w(nonNull, colId);
 
-          arma::rowvec temp = arma::sum(w) - (arma::ones<arma::rowvec>(k) * 0.5 * N);
+          arma::rowvec temp = arma::sum(w) - (0.5 * N);
           arma::uvec zeroIndices = arma::find(temp <= 0);
           temp.elem(zeroIndices).fill(0);
-          //a.print("blub");
           a(m) = std::max(0., arma::sum(w.col(m)) - 0.5 * N) / (arma::sum(temp));
-        //a.print("a");
           a /= arma::sum(a);
           if (a(m) > 0) {
             double scalingFactor = arma::sum(w.col(m));
@@ -158,26 +185,48 @@ double getProb(const arma::vec & datum) {
             arma::mat tempMat1 = data - newMu * arma::ones<arma::rowvec>(n);
             arma::mat tempMat2 = tempMat1.t() % (w.col(m) * arma::ones<arma::rowvec>(d) );
             arma::mat newSigma = 1./scalingFactor * tempMat1 * tempMat2;
+            arma::uvec notZeroIndices = arma::find(newSigma != 0);
+            if (notZeroIndices.n_elem == 0) {
+              --knz;
+              --k;
+              a.shed_row(m);
+              mixtureCandidate.erase(mixtureCandidate.begin() + m);
+              u.shed_col(m);
+              w.shed_col(m);
+              if (knz < kmin) break; 
+              continue;
+            }
             mixtureCandidate[m].setMu(newMu);
             mixtureCandidate[m].setSigma(newSigma);
             for (unsigned int i = 0; i < n; ++i) {
               u(i,m) = mixtureCandidate[m].getProb(data.col(i));
-            //std::cout << "boo1" << std::endl;
             }
-          } else{
+
+            arma::uvec failure= arma::find(u != u);
+            if (failure.n_elem > 0) {
+              std::cout << m << " m" << std::endl;
+              mixtureCandidate[m].print("Candidate");
+              newSigma.print("sigma");
+              tempMat1.print("tempMat");
+              std::cout << "scalingFactor" <<scalingFactor << std::endl;
+              w.col(m).print("wcol");
+              tempMat2.print("tempMat2");
+            }
+          } else {
             --knz;
             --k;
             a.shed_row(m);
             mixtureCandidate.erase(mixtureCandidate.begin() + m);
             u.shed_col(m);
             w.shed_col(m);
+            if (knz < kmin) break; 
           }
         }
         for (unsigned int m = 0; m < k; ++m) {
           if (a(m) <= 0) {
             //std::cout << "BLUB" << std::endl;
           }
-            Lnew += 0.5 * N * std::log(n * a(m) / 12);
+          Lnew += 0.5 * N * std::log(n * a(m) / 12);
         }
         Lnew += 0.5 * (knz * log(n/12.) + (knz * N + knz));
         Lnew -= arma::as_scalar(arma::sum(arma::log(u * a)));
@@ -188,6 +237,7 @@ double getProb(const arma::vec & datum) {
         mixture_ = mixtureCandidate;
         weights_ = a;
       }
+      if (knz <= kmin) break;
       arma::uvec tempIndices = arma::find(a == arma::min(a));
       unsigned int erasedIndex = tempIndices(0);
       //std::cout << erasedIndex << "ERASOR" << std::endl;
@@ -195,11 +245,12 @@ double getProb(const arma::vec & datum) {
       mixtureCandidate.erase(mixtureCandidate.begin() + erasedIndex);
       u.shed_col(erasedIndex);
       w.shed_col(erasedIndex);
-      
+
       --knz;
       --k;
-    //std::cout << "knz: " << knz << std::endl;
+      //std::cout << "knz: " << knz << std::endl;
     }
+
 
   }
   std::vector<GM> initMixtureModel(const arma::mat & data, unsigned int kmax) {

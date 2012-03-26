@@ -2,6 +2,9 @@
 
 #include <vector>
 #include <map>
+#include <boost/graph/adjacency_list.hpp>
+#ifndef __INCLUDE_HMM_CHINESEWHISPER_HPP
+#define __INCLUDE_HMM_CHINESEWHISPER_HPP
 
 template <typename Graph, typename std::enable_if<std::is_same<typename Graph::vertex_list_selector, boost::vecS>::value,void >::type>
 std::vector<std::size_t> chineseWhisper(const Graph & g, size_t numIterations) {
@@ -30,3 +33,4 @@ std::vector<std::size_t> chineseWhisper(const Graph & g, size_t numIterations) {
   return labels;
 
 }
+#endif
