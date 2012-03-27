@@ -59,13 +59,13 @@ struct HMMTestSuite : vigra::test_suite {
     HMM hmm;
 
     unsigned int kmin = 1;
-    unsigned int kmax = 5;
-    unsigned int n = 100;
+    unsigned int kmax = 2;
+    unsigned int n = 500;
 
-    arma::mat A = 10 *  arma::randn(2, n);
-    arma::mat B = 20 *  arma::randn(2, n) + 100;
+    arma::mat A = 10 *  arma::randn(1, n);
+    arma::mat B = 20 *  arma::randn(1, n) + 100;
     arma::mat testData = join_rows(A,B);
-    auto labels = kmeansWithSubset(testData, 1, 100, 1);
+    auto labels = kmeansWithSubset(testData, 2, 100, 1);
     //create gmm for all labels
     unsigned int numLabels = (unsigned int) arma::as_scalar(arma::max(labels)) + 1;
     std::vector<GMM> mixtureModels;
@@ -81,8 +81,8 @@ struct HMMTestSuite : vigra::test_suite {
       mixtureModels.push_back(GMM(testData, kmin, kmax));
     }
 //DEBUGGING
-arma::vec newMu = arma::randn(2, 1);
-arma::mat newSigma = 100 * arma::randn(2,2) + 500;
+arma::vec newMu = arma::randn(1, 1);
+arma::mat newSigma = 100 * arma::randn(1,1) + 500;
 newMu.print("newMu");
 newSigma.print("newSigma");
 std::cout << arma::det(newSigma);

@@ -41,7 +41,7 @@ class HMM {
     arma::rowvec checksum = arma::sum(gamma_);
     checksum.print("checksum");
     arma::uvec checksumIndices = arma::find(checksum < 1.0 - 1E-2);
-    if (checksumIndices.n_elem <= 1) {
+    if (checksumIndices.n_elem >= 1) {
       arma::rowvec checksumAlpha = arma::sum(alpha_);
       checksumAlpha.print("checkAlpha");
       //alpha_.print("alpha");
@@ -144,13 +144,13 @@ HMM::forwardProcedure(const arma::mat & data) {
   for(unsigned int i = 0; i < N_; ++i) {
     alpha_(i, 0) = pi_[i] * B_[i].getProb(data.col(0));
   }
-  std::cout << "FUCKYOU" << std::endl;
-  std::cout << B_[0].getProb(data.col(0)) << std::endl;
-  data.col(0).print("data");
+  //std::cout << "FUCKYOU" << std::endl;
+  //std::cout << B_[0].getProb(data.col(0)) << std::endl;
+  //data.col(0).print("data");
   
   //alpha_.print("alpha");
   //scaling
-  //
+  //TODO
   c_(0) = arma::accu(alpha_.col(0));
   alpha_.col(0) /= arma::as_scalar(c_(0));
 
@@ -188,7 +188,7 @@ HMM::backwardProcedure(const arma::mat & data) {
       b(i) = B_[i].getProb(data.col(t));
     }
     for (unsigned int i = 0; i < N_; ++i) {
-      beta_(i,t-1) = arma::as_scalar(A_.row(i) * (b % beta_.col(t)));
+      beta_(i,t-1) = arma::as_scalar(A_.col(i).t() * (b % beta_.col(t)));
     }
     beta_.col(t-1) /= arma::as_scalar(c_(t-1)); 
 
@@ -250,8 +250,6 @@ HMM::baumWelch(const arma::mat & data, const std::vector<GMM> & B, unsigned int 
     logprobprev = logprobc;
     //update state probabilities pi
     pi_ = gamma_.col(0).t();
-    //pi_ /= arma::accu(pi_); //TODO
-    //gamma_.print("gamma");
     for (unsigned int i = 0; i < N_; ++i) {
       arma::cube xi_i = xi_.subcube(arma::span::all, arma::span(i), arma::span::all);
       double shortscale = 1./arma::accu(gamma_.submat(arma::span(i), arma::span(0,T_-2 )));
@@ -277,7 +275,7 @@ HMM::baumWelch(const arma::mat & data, const std::vector<GMM> & B, unsigned int 
       }
       //gamma_lt.print("gamma_lt");
 
-
+      B_[i].print("previous");
       double scale = 1./arma::accu(gamma_.row(i));
       for (unsigned int l = 0; l < numComponents; ++l) {
         double sumGammaLt = arma::accu(gamma_lt.col(l));
@@ -302,6 +300,8 @@ HMM::baumWelch(const arma::mat & data, const std::vector<GMM> & B, unsigned int 
         //B_[i].normalizeWeights();
         //B_[i].print("BWEIGHT");
       }
+      B_[i].print("after");
+      std::cin.get();
     }
 
 
