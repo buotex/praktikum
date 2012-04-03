@@ -49,9 +49,11 @@ INCLUDE_DIRECTORIES(
 
 #### Sources
 SET(SRCS_GED ged_test.cxx)
+SET(SRCS_HMM hmm_test.cxx)
 
 #### Tests
-ADD_GEDLIB_TEST("ged" test_lib ${SRCS_GED})
+ADD_GEDLIB_TEST("ged" test_ged ${SRCS_GED})
+ADD_GEDLIB_TEST("hmm" test_hmm ${SRCS_HMM})
 
 LIST(LENGTH memtest_names numtests)
 IF(numtests GREATER 0)
