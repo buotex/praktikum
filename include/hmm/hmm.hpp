@@ -19,13 +19,8 @@ class HMM {
   double pprob_;
   //for debugging purposes
 
-  bool initSuccess_;
-  bool forwardSuccess_;
-  bool backwardSuccess_;
-  bool gammaSuccess_;
-  bool xiSuccess_;
-  
-  
+ friend class HMMComp;
+ 
   void checkAllComponents() {
    
     arma::vec rowSumA = arma::sum(A_, 1);
@@ -79,14 +74,6 @@ class HMM {
     }
   }
   public:
-  HMM() {
-    initSuccess_ = false;
-    forwardSuccess_ = false;
-    backwardSuccess_ = false;
-    gammaSuccess_ = false;
-    xiSuccess_ = false;
-
-  }
   void
     print(std::string header = "") {
       A_.print("A");
@@ -98,19 +85,56 @@ class HMM {
     }
 
   double baumWelch(const arma::mat & data, const std::vector<GMM> & B, unsigned int seed);
+  double baumWelch(const arma::mat & data, unsigned int seed);
+void createGMM(const arma::mat & data, const arma::urowvec & labels, unsigned int kmin, unsigned int kmax);
+//Warning: This will invalidate the internal data other than the relevant model data A, B and pi.
+void
+  sort(unsigned int dimension) {
+    arma::mat means; 
+    //1. step: sort all B_; according to their median
+    try{
+      for (size_t i = 0; i < B_.size(); ++i) {
+        means = arma::join_rows(means, B_[i].sort(dimension));
+      }
+    }
+    catch(const std::logic_error & e) {
+      throw e;
+    }
+    means.print("means");
+    arma::rowvec relevantDim = means.row(dimension);
+    arma::urowvec indices = arma::sort_index(relevantDim);
+    print();
+    indices.print("indices");
+    A_ = A_.submat(indices, indices);
+    pi_ = pi_.elem(indices).t();
+    std::vector<size_t> vindices = arma::conv_to<std::vector<size_t> >::from(indices);
+    reorder(B_, vindices);  
+print();
+  }
   private:
-  void init(const std::vector<GMM> & B, unsigned int seed);
+void init(const std::vector<GMM> & B, unsigned int seed);
 
 
-  double forwardProcedure(const arma::mat & data);
-  void backwardProcedure(const arma::mat & data);
+double forwardProcedure(const arma::mat & data);
+void backwardProcedure(const arma::mat & data);
 
-  void computeGamma();
-  void computeXi(const arma::mat & data);
+void computeGamma();
+void computeXi(const arma::mat & data);
 
 
 
 };
+void
+HMM::createGMM(const arma::mat & data, const arma::urowvec & labels, unsigned int kmin, unsigned int kmax) {
+  const unsigned int numLabels = (unsigned int) arma::as_scalar(arma::max(labels)) + 1;
+  B_.clear();
+
+  for (unsigned int i = 0; i < numLabels; ++i){
+    arma::uvec indices = arma::find(labels == i);
+    B_.push_back(GMM(data.cols(indices), kmin, kmax));
+  }
+
+}
 
 void 
 HMM::init(const std::vector<GMM> & B, unsigned int seed = 0) {
@@ -125,17 +149,13 @@ HMM::init(const std::vector<GMM> & B, unsigned int seed = 0) {
   pi_ = arma::randu(1,N_);
   pi_ /= arma::accu(pi_);
 
-  //this->print("HMM AFTER INIT");
-  //checkAllComponents();
-
-  initSuccess_ = true;
 }
 
 double
 HMM::forwardProcedure(const arma::mat & data) {
 
   assert(N_ == B_.size());
-  assert(initSuccess_ == true);
+  if (N_ != B_.size()) throw std::logic_error("The number of mixture models doesn't match the number of states");
   T_ = data.n_cols;
 
   alpha_ = arma::zeros(N_, T_);
@@ -144,13 +164,7 @@ HMM::forwardProcedure(const arma::mat & data) {
   for(unsigned int i = 0; i < N_; ++i) {
     alpha_(i, 0) = pi_[i] * B_[i].getProb(data.col(0));
   }
-  //std::cout << "FUCKYOU" << std::endl;
-  //std::cout << B_[0].getProb(data.col(0)) << std::endl;
-  //data.col(0).print("data");
-  
-  //alpha_.print("alpha");
-  //scaling
-  //TODO
+
   c_(0) = arma::accu(alpha_.col(0));
   alpha_.col(0) /= arma::as_scalar(c_(0));
 
@@ -158,22 +172,20 @@ HMM::forwardProcedure(const arma::mat & data) {
   //c_.print("scale");
   //iteration
   for(unsigned int t = 1; t < T_; ++t) {
-    for (unsigned int i = 0; i < N_; ++i) {
-      alpha_(i, t) = arma::as_scalar(A_.row(i) * alpha_.col(t-1)) * B_[i].getProb(data.col(t)); 
+    for (unsigned int j = 0; j < N_; ++j) {
+      alpha_(j, t) = arma::as_scalar(A_.col(j).t() * alpha_.col(t-1)) * B_[j].getProb(data.col(t)); 
     }
     c_(t) = arma::accu(alpha_.col(t));
-    alpha_.col(t) /= arma::as_scalar(c_(t)); //TODO
+    alpha_.col(t) /= arma::as_scalar(c_(t)); 
   }
 
   pprob_ = arma::accu(arma::log(c_));
-  forwardSuccess_ = true;
   return pprob_;
 }
 
 void
 HMM::backwardProcedure(const arma::mat & data) {
 
-  assert(forwardSuccess_ == true);
 
   beta_ = arma::mat(N_, T_);
   beta_.col(T_-1).fill(1./c_(T_-1));
@@ -184,18 +196,15 @@ HMM::backwardProcedure(const arma::mat & data) {
 
   //iteration
   for(unsigned int t = T_-1; t > 0; --t) {
-    for (unsigned int i = 0; i < N_; ++i) {
-      b(i) = B_[i].getProb(data.col(t));
+    for (unsigned int j = 0; j < N_; ++j) {
+      b(j) = B_[j].getProb(data.col(t));
     }
     for (unsigned int i = 0; i < N_; ++i) {
-      beta_(i,t-1) = arma::as_scalar(A_.col(i).t() * (b % beta_.col(t)));
+      beta_(i,t-1) = arma::as_scalar(A_.row(i) * (b % beta_.col(t)));
     }
     beta_.col(t-1) /= arma::as_scalar(c_(t-1)); 
 
   }
-  //beta_.print("beta");
-
-  backwardSuccess_ = true;
 }
 
 
@@ -206,33 +215,27 @@ HMM::computeXi(const arma::mat & data) {
   xi_ = arma::cube(T_-1, N_, N_);
 
 
-  //arma::rowvec denominator = arma::sum(alpha_ % beta_);
-  for(unsigned int j = 0; j < N_; ++j) {
-    for(unsigned int i = 0; i < N_; ++i) {
+//note the index switch, it's for performance reasons
+  for(unsigned int i = 0; i < N_; ++i) {
+    for(unsigned int j = 0; j < N_; ++j) {
       for(unsigned int t = 0; t < T_ - 1; ++t) {
-        xi_(t,i,j) = (alpha_(i,t) * A_(i,j)) * (B_[j].getProb(data.col(t+1)) *  beta_(j,t+1));
-        //xi_(t,i,j) /= arma::as_scalar(denominator(t));
+        xi_(t,j,i) = (alpha_(i,t) * A_(i,j)) * (B_[j].getProb(data.col(t+1)) *  beta_(j,t+1));
       }
     }
-    //xi_.slice(j) /= arma::as_scalar(arma::accu(xi_.slice(j)));
   }
-  //xi_.print("xi");
-  xiSuccess_ = true;
 }
 
 void
 HMM::computeGamma() {
-  gamma_ = alpha_.submat(arma::span::all, arma::span(0,T_-2)) % beta_.submat(arma::span::all, arma::span(0,T_-2));
-  //gamma_ /= (arma::ones(N_,1) * arma::sum(gamma_));
-  gamma_ %= (arma::ones(N_, 1) * c_.subvec(arma::span(0,T_-2)));
- 
+  gamma_ = alpha_ % beta_;
+  gamma_ %= (arma::ones(N_, 1) * c_);
 
-
-  //normalize calculation errors
-
-  gammaSuccess_ = true;
 }
 
+double
+HMM::baumWelch(const arma::mat & data, unsigned int seed = 0) {
+  return baumWelch(data, B_, seed);
+}
 double
 HMM::baumWelch(const arma::mat & data, const std::vector<GMM> & B, unsigned int seed = 0) {
 
@@ -246,25 +249,23 @@ HMM::baumWelch(const arma::mat & data, const std::vector<GMM> & B, unsigned int 
   double delta;
   double eps = 1E-6;
   do {
-    checkAllComponents();
     logprobprev = logprobc;
     //update state probabilities pi
     pi_ = gamma_.col(0).t();
     for (unsigned int i = 0; i < N_; ++i) {
-      arma::cube xi_i = xi_.subcube(arma::span::all, arma::span(i), arma::span::all);
-      double shortscale = 1./arma::accu(gamma_.submat(arma::span(i), arma::span(0,T_-2 )));
+      arma::rowvec xi_i = arma::sum(xi_.slice(i));
+      double shortscale = 1./arma::accu(gamma_.submat(arma::span(i),arma::span(0,T_-2)));
       for (unsigned int j = 0; j < N_; ++j) {
         //update transition matrix A
-        A_(i,j) = arma::accu(xi_i.slice(j)) * shortscale;
+        //A_(i,j) = arma::accu(xi_i.slice(j)) * shortscale;
+        A_(i,j) = xi_i(j) * shortscale;
       }
-      //A_ /= arma::sum(A_,1 ) * arma::ones(1, N_); //TODO
-      //A_.print("A");
       // and update distributions
       unsigned int numComponents = (unsigned int) B_[i].getNumComponents();
 
-      arma::mat gamma_lt = arma::mat(T_-1, numComponents);
+      arma::mat gamma_lt = arma::mat(T_, numComponents);
 
-      for(unsigned int t = 0; t < T_-1 ; ++t) {
+      for(unsigned int t = 0; t < T_ ; ++t) {
         double sumProb = B_[i].getProb(data.col(t));
         for (unsigned int l = 0; l < numComponents; ++l) {
           gamma_lt(t, l) = gamma_(i,t) * B_[i].getProb(data.col(t), l);
@@ -275,16 +276,15 @@ HMM::baumWelch(const arma::mat & data, const std::vector<GMM> & B, unsigned int 
       }
       //gamma_lt.print("gamma_lt");
 
-      B_[i].print("previous");
       double scale = 1./arma::accu(gamma_.row(i));
       for (unsigned int l = 0; l < numComponents; ++l) {
         double sumGammaLt = arma::accu(gamma_lt.col(l));
         double newWeight = scale * sumGammaLt;
-        arma::vec newMu = data.cols(0, T_-2) * gamma_lt.col(l) / sumGammaLt;
-        arma::mat tempMat = data.cols(0, T_-2) - newMu * arma::ones(1,T_-1);
+        arma::vec newMu = data * gamma_lt.col(l) / sumGammaLt;
+        arma::mat tempMat = data- newMu * arma::ones(1,T_);
         unsigned int d = data.n_rows;
         arma::mat newSigma = arma::zeros(d, d);
-        for (unsigned int t = 0; t < T_ - 1; ++t) {
+        for (unsigned int t = 0; t < T_ ; ++t) {
           arma::vec diff = data.col(t) - newMu;
           newSigma += diff * diff.t() * gamma_lt(t, l)/ sumGammaLt;
         }
@@ -297,11 +297,7 @@ HMM::baumWelch(const arma::mat & data, const std::vector<GMM> & B, unsigned int 
           gamma_lt.col(l).print("gamma_lt");
           throw e;
         }
-        //B_[i].normalizeWeights();
-        //B_[i].print("BWEIGHT");
       }
-      B_[i].print("after");
-      std::cin.get();
     }
 
 
@@ -313,13 +309,11 @@ HMM::baumWelch(const arma::mat & data, const std::vector<GMM> & B, unsigned int 
     computeXi(data);
     computeGamma();
 
-    std::cout << logprobc << " " << logprobprev;
+    std::cout << logprobc << " " << logprobprev << std::endl;
     delta = logprobc - logprobprev;
 
   } 
-  while(1);
-  //while (delta >= eps * std::abs(logprobprev));
-
+  while (delta >= eps * std::abs(logprobprev));
 
   return logprobc;
 

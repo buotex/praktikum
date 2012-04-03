@@ -42,24 +42,24 @@ kmeansLoop(const arma::mat & data, arma::mat & means, size_t maxIterations, size
     }
     arma::uvec tinyClusters = arma::find(meanCounter > (double)purgingThreshold);
     if (tinyClusters.n_elem != means.n_cols) {
-    try{
-      meanCounter.print("meanCounter");
-      means.print("means");
-    means = means.cols(tinyClusters);
-    meanCounter = meanCounter.cols(tinyClusters);
-      meanCounter.print("meanCounter");
-      means.print("means");
+      try{
+        meanCounter.print("meanCounter");
+        means.print("means");
+        means = means.cols(tinyClusters);
+        meanCounter = meanCounter.cols(tinyClusters);
+        meanCounter.print("meanCounter");
+        means.print("means");
+      }
+      catch(const std::logic_error & e) {
+        std::cout << "Purging :" << (double) purgingThreshold << std::endl;
+        meanCounter.print("meanCounter");
+        means.print("means");
+        tinyClusters.print("tiny");
+        std::cout << "size :" << means.n_cols << std::endl;
+        std::cout << "vecsize :" << meanCounter.n_elem << std::endl;
+        throw e;
+      }
     }
-    catch(const std::logic_error & e) {
-      std::cout << "Purging :" << (double) purgingThreshold << std::endl;
-      meanCounter.print("meanCounter");
-      means.print("means");
-      tinyClusters.print("tiny");
-      std::cout << "size :" << means.n_cols << std::endl;
-      std::cout << "vecsize :" << meanCounter.n_elem << std::endl;
-      throw e;
-    }
-}
     means /= (arma::ones(data.n_rows, 1) * meanCounter);
 
 

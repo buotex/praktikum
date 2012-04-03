@@ -3,6 +3,7 @@
 #include <hmm/hmm.hpp>
 #include <hmm/chinesewhisper.hpp>
 #include <hmm/kmeans.hpp>
+#include <hmm/kld.hpp>
 //#include <ctime>
 
 
@@ -13,6 +14,7 @@ struct HMMTestSuite : vigra::test_suite {
     add(testCase(&HMMTestSuite::testGm));
     add(testCase(&HMMTestSuite::testGmm));
     add(testCase(&HMMTestSuite::testHmm));
+    add(testCase(&HMMTestSuite::testKld));
   }
 
   void testKmeans() {
@@ -69,16 +71,10 @@ struct HMMTestSuite : vigra::test_suite {
     //create gmm for all labels
     unsigned int numLabels = (unsigned int) arma::as_scalar(arma::max(labels)) + 1;
     std::vector<GMM> mixtureModels;
-    std::vector<arma::mat> dataSubsets(numLabels);;
-    assert(testData.n_cols == labels.n_elem);
-    arma::uvec allDims = arma::uvec(testData.n_rows);
-    for (unsigned int i = 0; i < testData.n_rows; ++i){
-      allDims(i) = i;
-    }
 
     for (unsigned int i = 0; i < numLabels; ++i){
       arma::uvec indices = arma::find(labels == i);
-      mixtureModels.push_back(GMM(testData, kmin, kmax));
+      mixtureModels.push_back(GMM(testData.cols(indices), kmin, kmax));
     }
 //DEBUGGING
 arma::vec newMu = arma::randn(1, 1);
@@ -93,13 +89,43 @@ std::cout << arma::det(newSigma);
     hmm.print();
   }
 
-};
+  void
+    testKld() {
+      HMM hmm;
+      HMM hmm2;
+      unsigned int kmin = 1;
+      unsigned int kmax = 1;
+      unsigned int n = 5000;
 
-int main() {
-  HMMTestSuite test;
-  int success = test.run();
-  std::cout << test.report() << std::endl;
-  return success;
+      arma::mat A = 10 *  arma::randn(2, n);
+      arma::mat B = 20 *  arma::randn(2, n) + 100;
+      arma::mat C = 20 *  arma::randn(2, n) + 500;
+      arma::mat D = 10 *  arma::randn(2, n);
 
+      arma::mat testData = join_rows(A,B);
+      arma::mat testData2 = join_rows(C,D);
+      auto labels = kmeansWithSubset(testData, 2, 100, 0);
+      auto labels2 = kmeansWithSubset(testData2, 2, 100, 0);
+
+      hmm.createGMM(testData, labels, kmin, kmax);
+      hmm2.createGMM(testData2, labels2, kmin, kmax);
+
+      hmm.baumWelch(testData);
+      hmm2.baumWelch(testData2);
+
+      hmm.sort(0);
+      hmm2.sort(0);
+      std::cout << HMMComp::symmetric_kld(hmm, hmm2) << std::endl;
+      std::cout << HMMComp::symmetric_kld(hmm, hmm) << std::endl;
 
 }
+    };
+
+  int main() {
+    HMMTestSuite test;
+    int success = test.run();
+    std::cout << test.report() << std::endl;
+    return success;
+
+
+  }
