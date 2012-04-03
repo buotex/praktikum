@@ -9,6 +9,8 @@ struct PDBTestSuite : vigra::test_suite {
   }
 
   void testPdbInput() {
+    arma::mat data = createMatrix("data/2HDZ.pdb");
+    arma::mat data2 = createMatrix("data/3F27.pdb");
   }
 };
 int main() {

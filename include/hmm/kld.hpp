@@ -95,8 +95,8 @@ struct HMMComp{
 
       const arma::mat & A = hmm1.A_;
       const arma::mat & A_ = hmm2.A_;
-      const std::vector<GMM> & B = hmm1.B_;
-      const std::vector<GMM> & B_ = hmm2.B_;
+      const std::vector<GMM> & B = hmm1.BModels_;
+      const std::vector<GMM> & B_ = hmm2.BModels_;
       if (A.n_rows != A.n_cols) throw std::logic_error("Matrix isn't quadratic");
       if (A_.n_rows != A_.n_cols) throw std::logic_error("Matrix isn't quadratic");
 

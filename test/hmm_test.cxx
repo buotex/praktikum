@@ -40,7 +40,7 @@ struct HMMTestSuite : vigra::test_suite {
     //u.print("u");
   }
   void testGmm() {
-    
+
     GMM gmm; 
     using arma::join_cols;
     arma::mat A = arma::randn(1, 500);
@@ -76,12 +76,12 @@ struct HMMTestSuite : vigra::test_suite {
       arma::uvec indices = arma::find(labels == i);
       mixtureModels.push_back(GMM(testData.cols(indices), kmin, kmax));
     }
-//DEBUGGING
-arma::vec newMu = arma::randn(1, 1);
-arma::mat newSigma = 100 * arma::randn(1,1) + 500;
-newMu.print("newMu");
-newSigma.print("newSigma");
-std::cout << arma::det(newSigma);
+    //DEBUGGING
+    arma::vec newMu = arma::randn(1, 1);
+    arma::mat newSigma = 100 * arma::randn(1,1) + 500;
+    newMu.print("newMu");
+    newSigma.print("newSigma");
+    std::cout << arma::det(newSigma);
     mixtureModels[0].updateGM(0, 0.2, newMu, newSigma);
     mixtureModels[0].normalizeWeights();
     mixtureModels[0].print("blub");
@@ -91,8 +91,7 @@ std::cout << arma::det(newSigma);
 
   void
     testKld() {
-      HMM hmm;
-      HMM hmm2;
+      HMM hmm,hmm2, hmm3;
       unsigned int kmin = 1;
       unsigned int kmax = 1;
       unsigned int n = 5000;
@@ -109,23 +108,27 @@ std::cout << arma::det(newSigma);
 
       hmm.createGMM(testData, labels, kmin, kmax);
       hmm2.createGMM(testData2, labels2, kmin, kmax);
+      hmm3.createGMM(testData, labels, kmin, kmax);
 
       hmm.baumWelch(testData);
       hmm2.baumWelch(testData2);
+      hmm3.baumWelchCached(testData);
 
       hmm.sort(0);
       hmm2.sort(0);
+      hmm3.sort(0);
       std::cout << HMMComp::symmetric_kld(hmm, hmm2) << std::endl;
       std::cout << HMMComp::symmetric_kld(hmm, hmm) << std::endl;
+      std::cout << HMMComp::symmetric_kld(hmm, hmm3) << std::endl;
+
+    }
+};
+
+int main() {
+  HMMTestSuite test;
+  int success = test.run();
+  std::cout << test.report() << std::endl;
+  return success;
+
 
 }
-    };
-
-  int main() {
-    HMMTestSuite test;
-    int success = test.run();
-    std::cout << test.report() << std::endl;
-    return success;
-
-
-  }

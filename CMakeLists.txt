@@ -42,7 +42,7 @@ IF (ENABLE_BENCHMARK OR ENABLE_EXAMPLES)
     # require boost
     SET(Boost_USE_STATIC_LIBS OFF)
     SET(Boost_USE_MULTITHREAD OFF)
-    FIND_PACKAGE(Boost COMPONENTS program_options system REQUIRED)
+    FIND_PACKAGE(Boost COMPONENTS program_options filesystem system REQUIRED)
     INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
     LINK_DIRECTORIES(${Boost_LIBRARY_DIRS})
 ENDIF (ENABLE_BENCHMARK OR ENABLE_EXAMPLES)
@@ -88,6 +88,7 @@ ENDIF (ENABLE_COVERAGE)
 ############################################################################
 IF (ENABLE_EXAMPLES)
     ADD_SUBDIRECTORY(examples)
+    FILE(COPY examples/data DESTINATION ${GEDLIB_BINARY_DIR})
 ENDIF (ENABLE_EXAMPLES)
 
 

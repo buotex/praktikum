@@ -37,10 +37,16 @@ class GM {
     return sigma_;
   }
 
-  double getProb(const arma::vec & loc) {
-    arma::vec diff = loc - mu_;
+  double getProb(const arma::vec & loc) const {
+    const arma::vec diff = loc - mu_;
     double exponent = -0.5 * arma::as_scalar(diff.t() * invSigma_ * diff); //TODO: check how transpose works
     return coeff_ * std::exp(exponent);
+  }
+  arma::rowvec getDataProb(const arma::mat & data) const {
+    const arma::mat diff = data - mu_ * arma::ones(1, data.n_cols);
+    arma::rowvec exponent = -0.5 * arma::sum((invSigma_.t() * diff) % diff);
+    return coeff_ * arma::exp(exponent);
+    
   }
 
   void
@@ -134,7 +140,7 @@ class GMM {
         });
   }
 
-  arma::vec getMu() {
+  arma::vec getMu() const {
     arma::mat mu;
    
     for (unsigned int i = 0; i < weights_.n_elem; ++i) {
@@ -143,18 +149,26 @@ class GMM {
     return arma::conv_to<arma::vec>::from(mu * weights_);
   }
 
-  double getProb(const arma::vec & datum, unsigned int start, unsigned int end) {
+  double getProb(const arma::vec & datum, unsigned int start, unsigned int end) const {
     double prob = 0.;
     for(unsigned int i = start; i < end; ++i) {
       prob += weights_(i) * mixture_[i].getProb(datum);
     }
     return prob;
   }
-  double getProb(const arma::vec & datum, unsigned int index) {
+  double getProb(const arma::vec & datum, unsigned int index) const {
     return getProb(datum, index, index + 1);
   }
-  double getProb(const arma::vec & datum) {
+  double getProb(const arma::vec & datum) const {
     return getProb(datum, 0, (unsigned int)mixture_.size());
+  }
+  arma::vec getProbVector(const arma::mat & data, unsigned int index) const {
+    arma::vec prob = arma::vec(data.n_cols);
+    const GM & gm = mixture_[index];
+    for (unsigned int i = 0; i < data.n_cols; ++i) {
+      prob(i) = gm.getProb(data.col(i));
+    }
+    return prob;
   }
 
 
@@ -163,7 +177,6 @@ class GMM {
     //TODO:perhaps use a matrix for the data?
     //k == number of mixtures
     findMaxLikelihood(const arma::mat& data, unsigned int kmin, unsigned int kmax) {
-      std::cout << "kmax" << kmax << std::endl; 
       unsigned int n = data.n_cols; //number of data elements;
       unsigned int d = data.n_rows; //dimensionality of the data
       unsigned int N = d * (d+1)/2;
