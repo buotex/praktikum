@@ -1,3 +1,5 @@
+#include <array>
+#include <boost/graph/properties.hpp>
 #include <datatypes.hpp>
 #ifndef _UTILITIES_HPP__
 #define _UTILITIES_HPP__
@@ -49,6 +51,44 @@ static void map(const HistogramArray & histArray){}
  std::is_same<FirstT, SecondT>::value &&
  SameTypes<FirstT, ArgTypes...>::value >
 { };
+
+
+/*------------------------------------------------------------------------------------------------ */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 #endif

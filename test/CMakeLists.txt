@@ -50,10 +50,13 @@ INCLUDE_DIRECTORIES(
 #### Sources
 SET(SRCS_GED ged_test.cxx)
 SET(SRCS_HMM hmm_test.cxx)
+SET(SRCS_PDB pdb_test.cxx)
 
 #### Tests
 ADD_GEDLIB_TEST("ged" test_ged ${SRCS_GED})
 ADD_GEDLIB_TEST("hmm" test_hmm ${SRCS_HMM})
+ADD_GEDLIB_TEST("pdb" test_pdb ${SRCS_PDB})
+target_link_libraries(test_pdb ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY})
 
 LIST(LENGTH memtest_names numtests)
 IF(numtests GREATER 0)
