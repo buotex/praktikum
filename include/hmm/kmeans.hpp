@@ -110,6 +110,18 @@ kmeansWithSubset(const arma::mat & data, unsigned int numMaxClusters, size_t max
   return kmeansLoop(data, means, maxIterations, purgingThreshold);
 
 }
+arma::urowvec
+kmeans(const arma::mat & data, unsigned int numMaxClusters, size_t maxIterations, size_t purgingThreshold) {
+  unsigned int vecSize = data.n_cols;
+  std::mt19937 rSeedEngine;
+  typedef std::uniform_int_distribution<unsigned int> Distribution;
+  arma::mat means = arma::mat(data.n_rows, numMaxClusters);
+  for (unsigned int i = 0; i < means.n_cols; ++i) {
+    unsigned int randIndex = Distribution(0, vecSize-1)(rSeedEngine);
+    means.col(i) = data.col(randIndex);
+  }
+  return kmeansLoop(data, means, maxIterations, purgingThreshold);
+}
 
 
 #endif

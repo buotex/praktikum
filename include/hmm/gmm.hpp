@@ -22,14 +22,18 @@ void reorder(std::vector<T> &v, std::vector<size_t> const &order )  {
     }
 }
 class GM {
-  
+  unsigned int D_;
+
   arma::vec mu_;
   arma::mat sigma_;
   arma::mat invSigma_;
 
   double coeff_; 
   
- public:
+  public:
+  unsigned int const & getD() const {
+    return D_;
+  }
   arma::vec const & getMu() const {
     return mu_;
   }
@@ -46,24 +50,24 @@ class GM {
     const arma::mat diff = data - mu_ * arma::ones(1, data.n_cols);
     arma::rowvec exponent = -0.5 * arma::sum((invSigma_.t() * diff) % diff);
     return coeff_ * arma::exp(exponent);
-    
+
   }
 
   void
-  setSigma(const arma::mat & sigma) {
-    unsigned int d = sigma.n_rows;
-    arma::uvec nonZeroCount = arma::find(sigma != 0);
-    if (nonZeroCount.n_elem == 0) {
-      throw std::runtime_error("det(sigma) can't be zero");
+    setSigma(const arma::mat & sigma) {
+      D_ = sigma.n_rows;
+      arma::uvec nonZeroCount = arma::find(sigma != 0);
+      if (nonZeroCount.n_elem == 0) {
+        throw std::runtime_error("det(sigma) can't be zero");
+      }
+      sigma_ = sigma;
+      invSigma_ = arma::inv(sigma_);
+      coeff_ = 1./std::sqrt(std::pow(2. * M_PI, D_) * arma::det(sigma_));
     }
-    sigma_ = sigma;
-    invSigma_ = arma::inv(sigma_);
-    coeff_ = 1./std::sqrt(std::pow(2. * M_PI, d) * arma::det(sigma_));
-  }
   void 
-  setMu(const arma::vec & mu) {
-    mu_ = mu;
-  }
+    setMu(const arma::vec & mu) {
+      mu_ = mu;
+    }
 
   //create gaussian model with the highest loglikelyhood for the given data
   GM(const arma::mat& data) {
@@ -82,10 +86,21 @@ class GMM {
   //a vector of gaussian models
   std::vector<GM> mixture_;
   arma::vec weights_;
+  unsigned int D_;
   public:
- GMM() {} 
+
+  GMM() {} 
   GMM(const arma::mat& data, unsigned int kmin, unsigned int kmax) {
     findMaxLikelihood(data, kmin, kmax);
+  }
+  unsigned int
+    getD() const {
+      if (mixture_.size()) {
+        return mixture_[0].getD();
+      }
+      else {
+      return 0;
+      }
     }
   arma::vec const & getWeights() const {
     return weights_;
@@ -142,7 +157,7 @@ class GMM {
 
   arma::vec getMu() const {
     arma::mat mu;
-   
+
     for (unsigned int i = 0; i < weights_.n_elem; ++i) {
       mu = arma::join_rows(mu, mixture_[i].getMu());
     }
@@ -162,15 +177,6 @@ class GMM {
   double getProb(const arma::vec & datum) const {
     return getProb(datum, 0, (unsigned int)mixture_.size());
   }
-  arma::vec getProbVector(const arma::mat & data, unsigned int index) const {
-    arma::vec prob = arma::vec(data.n_cols);
-    const GM & gm = mixture_[index];
-    for (unsigned int i = 0; i < data.n_cols; ++i) {
-      prob(i) = gm.getProb(data.col(i));
-    }
-    return prob;
-  }
-
 
   //implementation of the EM-algorithm
   void

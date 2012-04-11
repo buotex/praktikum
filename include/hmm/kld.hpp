@@ -6,28 +6,153 @@
 
 
 struct HMMComp{
+  static
+    arma::rowvec findStationary(const arma::mat & A, unsigned int steps = 100, double eps = 1E-4) {
+      arma::rowvec x = arma::ones(1,A.n_rows);
+      arma::rowvec oldx = arma::ones(1,A.n_rows);
+      for (unsigned int i = 0; i < steps; ++i) {
+        x = oldx * A;
+        if (arma::norm(x - oldx, 2) < eps) return arma::zeros(1, A.n_rows);
+        oldx = x;
+      }
+      return x;
+    }
+  static
+    arma::mat
+    samplePointOffsets(const arma::mat & M) {
+      arma::vec eigval;
+      arma::mat eigvec;
+
+      arma::eig_sym(eigval, eigvec, M);
+
+      eigvec.print("eigvec");
+      eigval.print("eigval");
+
+      arma::mat rootK = eigval * arma::diagmat(eigval);
+      rootK.print("rootK");
+      return rootK;
+    }
+
+
+  //src: A Distance measure between GMMs based on the unscented transform//
+  static 
+    double
+    unscentedTransform(const GMM & gmm1, const GMM & gmm2) {
+      if (gmm1.getD() != gmm2.getD()) throw std::runtime_error("wrong dimensions in the GMMs");
+      unsigned int d = gmm1.getD();
+      arma::vec weights = gmm1.getWeights();
+      double val;
+      for (unsigned int i = 0; i < weights.n_elem; ++i) {
+        const GM & gm = gmm1.getGM(i);
+        arma::mat sigma = gm.getSigma();
+        arma::mat mu = gm.getMu();
+        arma::mat offsets = samplePointOffsets(d * sigma);
+        arma::mat x_1 = mu * arma::ones(1, d) + offsets;
+        arma::mat x_2 = mu * arma::ones(1, d) - offsets;
+        arma::mat x_i = arma::join_rows(x_1, x_2);
+        x_i.print("x_i");
+        for (unsigned int k = 0; k < 2 * d; ++k) {
+          val += weights(i) * std::log(gmm2.getProb(x_i.col(k)));
+        }
+
+      }
+      return 1./(2 * d) * val;
+    }
+  static 
+    double
+    giniIndex(const arma::vec & u) {
+      unsigned int N = u.n_elem;
+      arma::uvec indices = arma::sort_index(u);
+      double sum = 0.;
+      double invNorm = 1./arma::norm(u,1);
+      for (unsigned int k = 0; k < N; ++k) {
+        sum += u(indices(k)) * invNorm * ((double)N - (double) k + 0.5) / double(N);
+        std::cout << "Index " << k << " " << u(indices(k)) << std::endl;
+      }
+      return 1. - 2. * sum; 
+    }
+  static
+    double
+    normalizedGiniIndex(const arma::vec & u) {
+      double N = (double) u.n_elem;
+      if (N == 1.) return 1.;
+      return N/(N-1.) * giniIndex(u);
+    }
+  static
+    double
+    sMrandomWalk(const HMM & hmm1, const HMM & hmm2, int distanceSelect = 0) {
+      //calculate stationary probabilities for the states
+      arma::rowvec pi1 = findStationary(hmm1.A_);
+      arma::rowvec pi2 = findStationary(hmm2.A_);
+
+      //calculate Qij matrix, which represent the similarity between the states in both matrices
+      //using the unscentedTransform here, could also use KLD
+      arma::mat Sij = arma::mat(hmm1.N_, hmm2.N_);
+      double ES = 0.;
+      arma::mat Qij = arma::mat(hmm1.N_, hmm2.N_);
+      for (unsigned int j = 0; j < hmm2.N_; ++j) {
+        for (unsigned int i = 0; i < hmm1.N_; ++i) {
+          switch(distanceSelect) {
+            case 0:
+              Sij(i,j) =  unscentedTransform(hmm1.BModels_[i], hmm1.BModels_[i]) - unscentedTransform(hmm1.BModels_[i], hmm2.BModels_[j]);
+              break;
+            case 1:
+              Sij(i,j) = gmmDistance(hmm1.BModels_[i], hmm2.BModels_[j]);
+              break;
+          }
+          Qij(i,j) = pi1(i) * pi2(j) * Sij(i,j);
+          ES += pi1(i) * pi2(j) * Sij(i,j);
+        }
+      }
+      Qij /= ES;
+      Qij.print("Qij");
+      arma::vec Hi = arma::zeros(hmm1.N_);
+      arma::vec Hj = arma::zeros(hmm2.N_);
+
+      for (unsigned int i = 0; i < hmm1.N_; ++i) {
+        Hi(i) = normalizedGiniIndex(Qij.row(i));
+      }
+      for (unsigned int j = 0; j < hmm2.N_; ++j) {
+        Hj(j) = normalizedGiniIndex(Qij.col(j));
+      }
+      Hi.print("Hi");
+      Hj.print("Hj");
+
+      double similarity = 0.5 * (1./double(hmm1.N_) * arma::accu(Hi) + 1./double(hmm2.N_) * arma::accu(Hj));;
+
+      return similarity;
+
+    }
 
   /*
-  double
-    pmfDistance(const arma::rowvec & v1, const arma::rowvec & v2) {
-      return pmfDistance (v1.t(), v2.t());
-    }
-    */
+     double
+     pmfDistance(const arma::rowvec & v1, const arma::rowvec & v2) {
+     return pmfDistance (v1.t(), v2.t());
+     }
+     */
   static
     double
     pmfDistance(const arma::mat & v1, const arma::mat & v2) {
       if (v1.n_elem != v2.n_elem) throw std::logic_error("different amount of entries in compared pmfs");
-      double eps = 1E-6;
-      arma::vec v1_ = arma::conv_to<arma::vec>::from(v1);
-      arma::vec v2_ = arma::conv_to<arma::vec>::from(v2);
-      arma::uvec v1Zero = arma::find(v1_ == 0.);
-      arma::uvec v2Zero = arma::find(v2_ == 0.);
-      v1_.elem(v1Zero) += eps;
-      v2_.elem(v2Zero) += eps;
+      double eps = 1E-7;
+      //v1_.elem(v1Zero) += eps;
+      //v2_.elem(v2Zero) += eps;
+      double distance = 0.0;
+      for (unsigned int i = 0; i < v1.n_elem; ++i) {
+        if (v1(i) <= eps) continue;
+        distance += v1(i) * (std::log(v1(i)) - std::log(v2(i)));
+      }
 
-      arma::vec quotient = arma::log(v1_ / v2_);
+      //if (distance != distance) {
 
-      return arma::as_scalar(v1_.t() * quotient);
+      v1.print("v1");
+      v2.print("v2");
+      std::cout << "distance: " << distance << std::endl;
+      //throw std::runtime_error("NaN detected");
+      // }
+
+
+      return distance;
 
     }
 
@@ -47,7 +172,7 @@ struct HMMComp{
             arma::trace(arma::inv(C_) * C) +
             arma::as_scalar(diff.t() * arma::inv(C_) * diff)
             );
-
+      if (distance != distance) throw std::runtime_error("NaN detected");
       return distance;
 
     }
@@ -77,6 +202,7 @@ struct HMMComp{
         }
         distance += w_(k) * arma::min(D_);
       }
+      if (distance != distance) throw std::runtime_error("NaN detected");
       return 0.5 * distance;
 
     }
@@ -115,7 +241,13 @@ struct HMMComp{
       for (unsigned int i = 0; i < N-1; ++i) {
         f += APow.slice(i) * d + APow.slice(N-1) * e;  
       }
-
+      /* 
+         if (!f.is_finite())  {
+         d.print("d");
+         e.print("e");
+         f.print("f");
+         throw std::runtime_error("NaN detected");
+         }*/
       return piDistance + arma::as_scalar(hmm1.pi_ * f);
     }
 

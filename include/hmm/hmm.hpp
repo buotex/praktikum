@@ -19,6 +19,7 @@ class HMM {
   arma::rowvec c_;
   arma::rowvec C_;
   double pprob_;
+  double eps_;
   //for debugging purposes
 
  friend class HMMComp;
@@ -76,6 +77,7 @@ class HMM {
     }
   }
   public:
+  HMM():eps_(1E-5){}
   void
     print(std::string header = "") {
       A_.print("A");
@@ -85,6 +87,7 @@ class HMM {
       pi_.print("pi");
 
     }
+  void setEps(double eps) {eps_ = eps;}
   double baumWelch(const arma::mat & data, const std::vector<GMM> & B, unsigned int seed);
   double baumWelch(const arma::mat & data, unsigned int seed);
   double baumWelchCached(const arma::mat & data, const std::vector<GMM> & B, unsigned int seed);
@@ -186,6 +189,10 @@ HMM::cacheProbabilities(const arma::mat & data) {
       gammaLts_[i].col(l) = weights(l) * arma::trans(gm.getDataProb(data));
     }
     B_.col(i) = arma::sum(gammaLts_[i],1);
+  }
+  if (!B_.is_finite()) {
+    B_.print("B");
+    throw std::runtime_error("probabilities not finite");
   }
 }
 
@@ -298,8 +305,7 @@ HMM::computeXiCached() {
   arma::mat temp = B_.rows(1,T_-1) % beta_.cols(1,T_-1).t();
   for(unsigned int i = 0; i < N_; ++i) {
     xi_.slice(i) = temp % 
-      (alpha_(i,arma::span(0, T_-2)).t() * arma::ones(1, N_)) % 
-      (arma::ones(T_-1, 1) * A_.row(i));
+      (alpha_(i,arma::span(0, T_-2)).t() * A_.row(i));
   }
 }
 void
@@ -325,7 +331,6 @@ HMM::baumWelch(const arma::mat & data, const std::vector<GMM> & B, unsigned int 
   computeGamma();
   double logprobprev = 0.0;
   double delta;
-  double eps = 1E-5;
   do {
     logprobprev = logprobc;
     //update state probabilities pi
@@ -386,7 +391,7 @@ HMM::baumWelch(const arma::mat & data, const std::vector<GMM> & B, unsigned int 
     delta = logprobc - logprobprev;
 
   } 
-  while (delta >= eps * std::abs(logprobprev));
+  while (delta >= eps_ * std::abs(logprobprev));
 
   return logprobc;
 
@@ -407,7 +412,6 @@ HMM::baumWelchCached(const arma::mat & data, const std::vector<GMM> & B, unsigne
   double logprobc = forwardProcedureCached();
   double logprobprev = 0.0;
   double delta;
-  double eps = 1E-5;
   do {
     backwardProcedureCached();
     computeXiCached();
@@ -461,12 +465,12 @@ HMM::baumWelchCached(const arma::mat & data, const std::vector<GMM> & B, unsigne
 
 
     cacheProbabilities(data);
-    logprobc = forwardProcedure(data);
+    logprobc = forwardProcedureCached();
     std::cout << logprobc << " " << logprobprev << std::endl;
     delta = logprobc - logprobprev;
 
   } 
-  while (delta >= eps * std::abs(logprobprev));
+  while (delta >= eps_ * std::abs(logprobprev));
 
   return logprobc;
 
