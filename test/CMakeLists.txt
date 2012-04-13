@@ -13,7 +13,7 @@ MACRO(ADD_GEDLIB_TEST name exe src)
     #build the test
     ADD_EXECUTABLE(${exe} ${src})
     #link lapack
-    target_link_libraries(${exe})
+    target_link_libraries(${exe} armadillo)
     #add test to global list of unit test
     ADD_TEST(${name} ${exe})
     MESSAGE(STATUS "Adding test for ${name}: ${exe}.")
@@ -57,6 +57,7 @@ ADD_GEDLIB_TEST("ged" test_ged ${SRCS_GED})
 ADD_GEDLIB_TEST("hmm" test_hmm ${SRCS_HMM})
 ADD_GEDLIB_TEST("pdb" test_pdb ${SRCS_PDB})
 target_link_libraries(test_pdb ${Boost_FILESYSTEM_LIBRARY} ${Boost_SYSTEM_LIBRARY})
+target_link_libraries(test_hmm armadillo)
 
 LIST(LENGTH memtest_names numtests)
 IF(numtests GREATER 0)

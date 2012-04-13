@@ -191,7 +191,23 @@ HMM::cacheProbabilities(const arma::mat & data) {
     B_.col(i) = arma::sum(gammaLts_[i],1);
   }
   if (!B_.is_finite()) {
-    B_.print("B");
+    //B_.print("B");
+    for (unsigned int i = 0; i < N_; ++i) {
+      arma::vec test = B_.col(i);
+      if (!test.is_finite()) {
+        arma::vec weights = BModels_[i].getWeights();
+        for (unsigned l = 0; l < weights.n_elem; ++l) {
+        arma::vec test2 = gammaLts_[i].col(l); 
+          if (!test2.is_finite()) {
+            const GM & gm = BModels_[i].getGM(l);
+            gm.print("gm");
+            arma::vec test3 = arma::trans(gm.getDataProb(data));
+            //test3.print("test3");
+            //gm.sanityCheck();
+          }
+        }
+      }
+    }
     throw std::runtime_error("probabilities not finite");
   }
 }
@@ -362,7 +378,6 @@ HMM::baumWelch(const arma::mat & data, const std::vector<GMM> & B, unsigned int 
         double sumGammaLt = arma::accu(gamma_lt.col(l));
         double newWeight = scale * sumGammaLt;
         arma::vec newMu = data * gamma_lt.col(l) / sumGammaLt;
-        arma::mat tempMat = data- newMu * arma::ones(1,T_);
         unsigned int d = data.n_rows;
         arma::mat newSigma = arma::zeros(d, d);
         for (unsigned int t = 0; t < T_ ; ++t) {
@@ -374,7 +389,6 @@ HMM::baumWelch(const arma::mat & data, const std::vector<GMM> & B, unsigned int 
           BModels_[i].updateGM(l, newWeight, newMu, newSigma);
         }
         catch( const std::runtime_error & e) {
-          tempMat.print("tempMat");
           gamma_lt.col(l).print("gamma_lt");
           throw e;
         }
@@ -461,6 +475,8 @@ HMM::baumWelchCached(const arma::mat & data, const std::vector<GMM> & B, unsigne
           throw e;
         }
       }
+      arma::uvec indices = BModels_[i].cleanupGMs();
+      gammaLts_[i] = gammaLts_[i].cols(indices);
     }
 
 

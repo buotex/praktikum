@@ -7,15 +7,18 @@
 
 struct HMMComp{
   static
-    arma::rowvec findStationary(const arma::mat & A, unsigned int steps = 100, double eps = 1E-4) {
+    arma::rowvec findStationary(const arma::mat & A, unsigned int steps = 1000, double eps = 1E-2) {
       arma::rowvec x = arma::ones(1,A.n_rows);
       arma::rowvec oldx = arma::ones(1,A.n_rows);
       for (unsigned int i = 0; i < steps; ++i) {
         x = oldx * A;
-        if (arma::norm(x - oldx, 2) < eps) return arma::zeros(1, A.n_rows);
+        if (arma::norm(x - oldx, "inf") < eps) return x;
         oldx = x;
       }
-      return x;
+      arma::rowvec newx = x * A;
+      x.print("oldX");
+      newx.print("newX");
+      return arma::zeros(1, A.n_rows);
     }
   static
     arma::mat
@@ -25,23 +28,25 @@ struct HMMComp{
 
       arma::eig_sym(eigval, eigvec, M);
 
-      eigvec.print("eigvec");
-      eigval.print("eigval");
+      //eigvec.print("eigvec");
+      //eigval.print("eigval");
 
-      arma::mat rootK = eigval * arma::diagmat(eigval);
-      rootK.print("rootK");
+      arma::mat rootK = eigvec * arma::diagmat(arma::sqrt(eigval));
+      //rootK.print("rootK");
       return rootK;
     }
 
 
   //src: A Distance measure between GMMs based on the unscented transform//
+  //To prevent infinities from happening, we'll already calculate e^-D here
   static 
     double
-    unscentedTransform(const GMM & gmm1, const GMM & gmm2) {
+    expUnscentedTransform(const GMM & gmm1, const GMM & gmm2, double K = 0.5) {
       if (gmm1.getD() != gmm2.getD()) throw std::runtime_error("wrong dimensions in the GMMs");
       unsigned int d = gmm1.getD();
       arma::vec weights = gmm1.getWeights();
-      double val;
+      double val = 1.;
+      double prefix = 1./(2 * d);
       for (unsigned int i = 0; i < weights.n_elem; ++i) {
         const GM & gm = gmm1.getGM(i);
         arma::mat sigma = gm.getSigma();
@@ -50,14 +55,26 @@ struct HMMComp{
         arma::mat x_1 = mu * arma::ones(1, d) + offsets;
         arma::mat x_2 = mu * arma::ones(1, d) - offsets;
         arma::mat x_i = arma::join_rows(x_1, x_2);
-        x_i.print("x_i");
+        //x_i.print("x_i");
         for (unsigned int k = 0; k < 2 * d; ++k) {
-          val += weights(i) * std::log(gmm2.getProb(x_i.col(k)));
+          //val += weights(i) * std::log(gmm2.getProb(x_i.col(k)));
+          val *= std::pow(gmm1.getProb(x_i.col(k)),-K * weights(i) * prefix); 
+          val *= std::pow(gmm2.getProb(x_i.col(k)),K * weights(i) * prefix); 
+          //std::cout << "prob: " << gmm1.getProb(x_i.col(k)) << "weight: " << weights(i) << std::endl;
+          //std::cout << "prob: " << gmm2.getProb(x_i.col(k)) << "weight: " << weights(i) << std::endl;
+          //std::cout << "entry " << val << std::endl;
         }
-
       }
-      return 1./(2 * d) * val;
+      //std::cout << "FUBLA "  << val << std::endl << std::endl;
+
+      return val;
     }
+
+  static double
+  hoyerMeasure(const arma::vec & u) {
+    double N = (double)u.n_elem;
+    return (std::sqrt(N) - arma::norm(u,1) / arma::norm(u,2)) / (std::sqrt(N) - 1);
+  }
   static 
     double
     giniIndex(const arma::vec & u) {
@@ -65,17 +82,19 @@ struct HMMComp{
       arma::uvec indices = arma::sort_index(u);
       double sum = 0.;
       double invNorm = 1./arma::norm(u,1);
+
       for (unsigned int k = 0; k < N; ++k) {
-        sum += u(indices(k)) * invNorm * ((double)N - (double) k + 0.5) / double(N);
-        std::cout << "Index " << k << " " << u(indices(k)) << std::endl;
+        sum += u(indices(k)) * invNorm * ((double)N - (double) k - 0.5) / double(N);
+        //std::cout << "Index " << k << " " << u(indices(k)) << std::endl;
       }
+      //std::cout << "sum: " << sum << std::endl;
       return 1. - 2. * sum; 
     }
   static
     double
     normalizedGiniIndex(const arma::vec & u) {
       double N = (double) u.n_elem;
-      if (N == 1.) return 1.;
+      if (N == 1. || arma::norm(u,1) == 0) return 0.;
       return N/(N-1.) * giniIndex(u);
     }
   static
@@ -84,43 +103,54 @@ struct HMMComp{
       //calculate stationary probabilities for the states
       arma::rowvec pi1 = findStationary(hmm1.A_);
       arma::rowvec pi2 = findStationary(hmm2.A_);
+      pi1.print("pi1");
+      pi2.print("pi2");
+    
 
       //calculate Qij matrix, which represent the similarity between the states in both matrices
       //using the unscentedTransform here, could also use KLD
       arma::mat Sij = arma::mat(hmm1.N_, hmm2.N_);
       double ES = 0.;
       arma::mat Qij = arma::mat(hmm1.N_, hmm2.N_);
+      //pi1.print("pi1");
+      //pi2.print("pi2");
       for (unsigned int j = 0; j < hmm2.N_; ++j) {
         for (unsigned int i = 0; i < hmm1.N_; ++i) {
           switch(distanceSelect) {
             case 0:
-              Sij(i,j) =  unscentedTransform(hmm1.BModels_[i], hmm1.BModels_[i]) - unscentedTransform(hmm1.BModels_[i], hmm2.BModels_[j]);
+              Sij(i,j) = expUnscentedTransform(hmm1.BModels_[i], hmm2.BModels_[j]);
               break;
             case 1:
-              Sij(i,j) = gmmDistance(hmm1.BModels_[i], hmm2.BModels_[j]);
+              Sij(i,j) = std::exp(-gmmDistance(hmm1.BModels_[i], hmm2.BModels_[j]));
               break;
           }
           Qij(i,j) = pi1(i) * pi2(j) * Sij(i,j);
-          ES += pi1(i) * pi2(j) * Sij(i,j);
+          ES += Qij(i,j);
         }
       }
-      Qij /= ES;
+      if (ES != 0.) {
+        Qij /= ES;
+      }
+      Sij.print("Sij");
       Qij.print("Qij");
-      arma::vec Hi = arma::zeros(hmm1.N_);
-      arma::vec Hj = arma::zeros(hmm2.N_);
+      arma::vec Hi = arma::zeros(hmm1.N_, 1);
+      arma::vec Hj = arma::zeros(hmm2.N_, 1);
 
       for (unsigned int i = 0; i < hmm1.N_; ++i) {
-        Hi(i) = normalizedGiniIndex(Qij.row(i));
+        Hi(i) = normalizedGiniIndex(Qij.row(i).t());
+        
+        //Hi(i) = hoyerMeasure(Qij.row(i).t());
       }
       for (unsigned int j = 0; j < hmm2.N_; ++j) {
         Hj(j) = normalizedGiniIndex(Qij.col(j));
+        //Hj(j) = hoyerMeasure(Qij.col(j));
       }
       Hi.print("Hi");
       Hj.print("Hj");
 
       double similarity = 0.5 * (1./double(hmm1.N_) * arma::accu(Hi) + 1./double(hmm2.N_) * arma::accu(Hj));;
 
-      return similarity;
+      return ES / std::max(hmm1.N_, hmm2.N_) * similarity;
 
     }
 
@@ -145,9 +175,9 @@ struct HMMComp{
 
       //if (distance != distance) {
 
-      v1.print("v1");
-      v2.print("v2");
-      std::cout << "distance: " << distance << std::endl;
+      //v1.print("v1");
+      //v2.print("v2");
+      //std::cout << "distance: " << distance << std::endl;
       //throw std::runtime_error("NaN detected");
       // }
 
@@ -211,7 +241,11 @@ struct HMMComp{
   double 
     static kld(const HMM & hmm1, const HMM & hmm2) {
 
-      double piDistance = pmfDistance(hmm1.pi_, hmm2.pi_);
+      arma::rowvec pi1 = findStationary(hmm1.A_);
+      arma::rowvec pi2 = findStationary(hmm2.A_);
+
+      //double piDistance = pmfDistance(hmm1.pi_, hmm2.pi_);
+      double piDistance = pmfDistance(pi1, pi2);
       if (hmm1.N_ != hmm2.N_) throw std::logic_error("different number of states in the hmms");
 
       unsigned int N = hmm1.N_;
@@ -248,7 +282,8 @@ struct HMMComp{
          f.print("f");
          throw std::runtime_error("NaN detected");
          }*/
-      return piDistance + arma::as_scalar(hmm1.pi_ * f);
+      return piDistance + arma::as_scalar(pi1 * f);
+      //return piDistance + arma::as_scalar(hmm1.pi_ * f);
     }
 
   static double

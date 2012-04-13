@@ -57,10 +57,10 @@ class GM {
     setSigma(const arma::mat & sigma) {
       D_ = sigma.n_rows;
       arma::uvec nonZeroCount = arma::find(sigma != 0);
-      if (nonZeroCount.n_elem == 0) {
-        throw std::runtime_error("det(sigma) can't be zero");
-      }
       sigma_ = sigma;
+      if (arma::det(sigma_) <= 0) {
+        throw std::runtime_error("det(sigma) has to be positive");
+      }
       invSigma_ = arma::inv(sigma_);
       coeff_ = 1./std::sqrt(std::pow(2. * M_PI, D_) * arma::det(sigma_));
     }
@@ -75,7 +75,23 @@ class GM {
     setSigma(arma::cov(data.t()));
   }
   GM() {}
-  void print(std::string header = "") {
+  GM(const arma::vec & mu, const arma::mat & sigma) {
+    setMu(mu);
+    setSigma(sigma);
+  }
+  bool sanityCheck() const {
+    bool sane = false;
+    if (D_ == 0 || arma::det(sigma_) == 0 || !invSigma_.is_finite()) sane = false;
+    if (!sane) {
+      std::cout << "coeff: " << coeff_ << std::endl;
+      std::cout << "D: " << D_ << std::endl;
+      sigma_.print("sigma");
+      invSigma_.print("invSigma");
+      throw std::logic_error("Something is wrong with the GM");
+    }
+    return sane;
+  }
+  void print(std::string header = "") const {
     std::cout << header << std::endl;
     mu_.print("Mean vector");
     sigma_.print("Sigma");
@@ -99,7 +115,7 @@ class GMM {
         return mixture_[0].getD();
       }
       else {
-      return 0;
+        return 0;
       }
     }
   arma::vec const & getWeights() const {
@@ -124,18 +140,29 @@ class GMM {
     return mixture_[0].getMu(); 
   }
 
-
+  arma::uvec
+  cleanupGMs() {
+    arma::uvec goodIndices = arma::find(weights_ > 0);
+    while(1) {
+      double * p = std::find(weights_.begin(), weights_.end(), 0.);
+      if (p == weights_.end()) break;
+      unsigned int index = (unsigned int) std::distance(weights_.begin(), p);
+      mixture_.erase(mixture_.begin() + index);
+      weights_.shed_row(index);
+    }
+    return goodIndices;
+  }
+  
   bool  
     updateGM(unsigned int index, double weight, const arma::vec & mu, const arma::mat & sigma) {
-      if (arma::det(sigma) == 0) {
-        mixture_.erase(mixture_.begin() + index);
-        weights_.shed_row(index);
+      if (arma::det(sigma) <= 0) {
+        //mixture_.erase(mixture_.begin() + index);
+        weights_(index) = 0.;
         normalizeWeights();
         return false;
       }
       weights_[index] = weight;
-      mixture_[index].setMu(mu);
-      mixture_[index].setSigma(sigma);
+      mixture_[index] = GM(mu, sigma);
       return true;
     }
   void

@@ -15,6 +15,7 @@ struct HMMTestSuite : vigra::test_suite {
     add(testCase(&HMMTestSuite::testGmm));
     add(testCase(&HMMTestSuite::testHmm));
     add(testCase(&HMMTestSuite::testKld));
+    add(testCase(&HMMTestSuite::testRandomWalk));
   }
 
   void testKmeans() {
@@ -121,6 +122,38 @@ struct HMMTestSuite : vigra::test_suite {
       std::cout << HMMComp::symmetric_kld(hmm, hmm) << std::endl;
       std::cout << HMMComp::symmetric_kld(hmm, hmm3) << std::endl;
 
+    }
+  void
+    testRandomWalk() {
+      HMM hmm,hmm2, hmm3;
+      unsigned int kmin = 1;
+      unsigned int kmax = 1;
+      unsigned int n = 5000;
+
+      arma::mat A = 10 *  arma::randn(2, n);
+      arma::mat B = 20 *  arma::randn(2, n) + 100;
+      arma::mat C = 20 *  arma::randn(2, n) + 500;
+      arma::mat D = 10 *  arma::randn(2, n);
+
+      arma::mat testData = join_rows(A,B);
+      arma::mat testData2 = join_rows(C,D);
+      auto labels = kmeansWithSubset(testData, 2, 100, 0);
+      auto labels2 = kmeansWithSubset(testData2, 2, 100, 0);
+
+      hmm.createGMM(testData, labels, kmin, kmax);
+      hmm2.createGMM(testData2, labels2, kmin, kmax);
+      hmm3.createGMM(testData, labels, kmin, kmax);
+
+      hmm.baumWelch(testData);
+      hmm2.baumWelch(testData2);
+      hmm3.baumWelchCached(testData);
+
+      hmm.sort(0);
+      hmm2.sort(0);
+      hmm3.sort(0);
+      std::cout << HMMComp::sMrandomWalk(hmm, hmm2) << std::endl;
+      std::cout << HMMComp::sMrandomWalk(hmm, hmm) << std::endl;
+      std::cout << HMMComp::sMrandomWalk(hmm, hmm3) << std::endl;
     }
 };
 

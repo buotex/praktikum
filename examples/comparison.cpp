@@ -40,8 +40,8 @@ rotZ(const arma::mat & data, double phi) {
 int main() {
   HMM hmm, hmm2, hmm3, hmm4, hmm5;
 
-  unsigned int kmin = 3;
-  unsigned int kmax = 5;
+  unsigned int kmin = 1;
+  unsigned int kmax = 1;
   unsigned int clusternumber = 10;
   double eps = 1E-4;
   arma::mat data = createMatrix("data/2HDZ.pdb");
@@ -68,23 +68,26 @@ int main() {
   hmm2.baumWelchCached(data2);
   hmm3.baumWelchCached(data3);
   hmm4.baumWelchCached(data4);
-  hmm.sort(0);
-  hmm2.sort(0);
-  hmm3.sort(0);
+  //hmm.sort(0);
+  //hmm2.sort(0);
+  //hmm3.sort(0);
   //hmm4.sort(0);
 
   //hmm2.print("hmm2");
   //std::cout << "SPLIT";
   //hmm3.print("hmm3");
   std::cout << "RESULTS" << std::endl;
-  //std::cout << HMMComp::symmetric_kld(hmm, hmm) << std::endl;
-  //std::cout << HMMComp::symmetric_kld(hmm, hmm2) << std::endl;
-  //std::cout << HMMComp::symmetric_kld(hmm3, hmm2) << std::endl;
-  //std::cout << HMMComp::symmetric_kld(hmm4, hmm2) << std::endl;
+  std::cout << HMMComp::symmetric_kld(hmm, hmm) << std::endl;
+  std::cout << HMMComp::symmetric_kld(hmm, hmm2) << std::endl;
+  std::cout << HMMComp::symmetric_kld(hmm3, hmm2) << std::endl;
+  std::cout << HMMComp::symmetric_kld(hmm4, hmm2) << std::endl;
 
   std::cout << HMMComp::sMrandomWalk(hmm, hmm) << std::endl;
+  //std::cin.get();
   std::cout << HMMComp::sMrandomWalk(hmm, hmm2) << std::endl;
+  //std::cin.get();
   std::cout << HMMComp::sMrandomWalk(hmm3, hmm2) << std::endl;
+  //std::cin.get();
   std::cout << HMMComp::sMrandomWalk(hmm4, hmm2) << std::endl;
 
 
