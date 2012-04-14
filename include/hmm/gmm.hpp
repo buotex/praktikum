@@ -21,6 +21,9 @@ void reorder(std::vector<T> &v, std::vector<size_t> const &order )  {
         if ( d == s ) while ( d = order[d], d != s ) std::swap( v[s], v[d] );
     }
 }
+
+
+
 class GM {
   unsigned int D_;
 
@@ -118,6 +121,10 @@ class GMM {
         return 0;
       }
     }
+
+    unsigned int n_gm() const {
+      return weights_.n_elem;
+    }
   arma::vec const & getWeights() const {
     return weights_;
   }
@@ -165,6 +172,9 @@ class GMM {
       mixture_[index] = GM(mu, sigma);
       return true;
     }
+  void setGM(unsigned int index, const GM & gm) {
+    mixture_[index] = gm;
+  }
   void
     normalizeWeights() {
       weights_ /= arma::accu(weights_);
@@ -173,7 +183,7 @@ class GMM {
     getNumComponents() {
       return mixture_.size();
     }
-  void print(std::string header = "") {
+  void print(std::string header = "") const {
     std::cout << header << std::endl;
     arma::uvec nonZero = arma::find(weights_);
     std::for_each(nonZero.begin(), nonZero.end(), [this](unsigned int index) {
@@ -367,7 +377,36 @@ class GMM {
 
 
 };
+struct MatrixTransformationFunctor {
+  const arma::mat transMatrix_;
+  MatrixTransformationFunctor(const arma::mat & transMatrix):transMatrix_(transMatrix) {}
+  GM
+    transformGM(const GM & gm) const {
 
+      GM gm2 = gm;
+      //gm2.setSigma(transMatrix_ * gm2.getSigma() * arma::inv(transMatrix_));
+      gm2.setSigma(transMatrix_ * gm2.getSigma() * transMatrix_.t());
+      gm2.setMu(transMatrix_ * gm2.getMu());
 
+      return gm2;
+    }
+
+  GMM
+    transformGMM(const GMM & gmm) const {
+      GMM gmm2 = gmm;
+      for (unsigned int i = 0; i < gmm.n_gm(); ++i) {
+        gmm2.setGM(i, transformGM(gmm.getGM(i)));
+      }
+      return gmm2;
+    }
+  GMM operator()(const GMM & gmm) const {
+    return transformGMM(gmm);
+  }
+};
+struct IdentityFunctor {
+  GMM operator()(const GMM & gmm) const {
+    return gmm;
+  }
+};
 
 #endif

@@ -42,14 +42,14 @@ int main() {
 
   unsigned int kmin = 1;
   unsigned int kmax = 1;
-  unsigned int clusternumber = 10;
+  unsigned int clusternumber = 3;
   double eps = 1E-4;
   arma::mat data = createMatrix("data/2HDZ.pdb");
   arma::mat data2 = createMatrix("data/3F27.pdb");
   //arma::mat data3 = data2;
   //data3.swap_cols(0,1);
   arma::mat data3 = arma::shuffle(data2, 1);
-  arma::mat data4 = rotY(rotX(data2, M_PI/2), M_PI);
+  arma::mat data4 = rotY(rotX(data2, 0.7 * M_PI), 0.2 * M_PI);
   auto labels = kmeans(data, clusternumber, 100, 0);
   auto labels2 = kmeans(data2, clusternumber, 100, 0);
   auto labels3 = kmeans(data3, clusternumber, 100, 0);
@@ -82,14 +82,32 @@ int main() {
   std::cout << HMMComp::symmetric_kld(hmm3, hmm2) << std::endl;
   std::cout << HMMComp::symmetric_kld(hmm4, hmm2) << std::endl;
 
-  std::cout << HMMComp::sMrandomWalk(hmm, hmm) << std::endl;
+  //std::cout << HMMComp::sMrandomWalk(hmm, hmm) << std::endl;
   //std::cin.get();
-  std::cout << HMMComp::sMrandomWalk(hmm, hmm2) << std::endl;
+  //std::cout << HMMComp::sMrandomWalk(hmm, hmm2) << std::endl;
   //std::cin.get();
-  std::cout << HMMComp::sMrandomWalk(hmm3, hmm2) << std::endl;
+  //std::cout << HMMComp::sMrandomWalk(hmm3, hmm2) << std::endl;
   //std::cin.get();
-  std::cout << HMMComp::sMrandomWalk(hmm4, hmm2) << std::endl;
+  //std::cout << HMMComp::sMrandomWalk(hmm4, hmm2) << std::endl;
+  arma::mat trans = arma::inv(rotY(rotX(arma::eye(3,3), 0.4 * M_PI), 0.1 * M_PI));
+  arma::mat transformation1 = HMMComp::findTransformationMatrix(hmm2, hmm4);
+  arma::cube transformation2 = HMMComp::findTransformationMatrix2(hmm2, hmm4);
+  arma::cube transformation3 = HMMComp::findTransformationMatrix2(hmm, hmm2);
+  trans.print("origTrans");
+  transformation1.print("trans1");
+  transformation2.print("trans2");
 
+
+  MatrixTransformationFunctor mtf1(transformation1);
+  std::cout << HMMComp::sMrandomWalk(hmm2, hmm4, mtf1) << std::endl;
+  for (unsigned int i = 0; i < transformation2.n_slices; ++i) {
+    MatrixTransformationFunctor mtf2(transformation2.slice(i));
+    std::cout << HMMComp::sMrandomWalk(hmm2, hmm4, mtf2) << std::endl;
+  }
+  for (unsigned int i = 0; i < transformation3.n_slices; ++i) {
+    MatrixTransformationFunctor mtf3(transformation3.slice(i));
+    std::cout << HMMComp::sMrandomWalk(hmm, hmm2, mtf3) << std::endl;
+  }
 
 
 

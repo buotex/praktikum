@@ -154,6 +154,11 @@ struct HMMTestSuite : vigra::test_suite {
       std::cout << HMMComp::sMrandomWalk(hmm, hmm2) << std::endl;
       std::cout << HMMComp::sMrandomWalk(hmm, hmm) << std::endl;
       std::cout << HMMComp::sMrandomWalk(hmm, hmm3) << std::endl;
+  arma::mat transformation1 = HMMComp::findTransformationMatrix(hmm, hmm3);
+
+  MatrixTransformationFunctor mtf1(transformation1);
+  std::cout << HMMComp::sMrandomWalk(hmm, hmm3, mtf1) << std::endl;
+
     }
 };
 
