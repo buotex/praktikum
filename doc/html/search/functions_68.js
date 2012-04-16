@@ -12,6 +12,7 @@ var searchData=
   ['hermitef',['hermitef',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a01178.html#gae988297f029678fe244e51f92fd322dc',1,'std::tr1']]],
   ['hermitel',['hermitel',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a01178.html#ga4081e57e1f539d88e9d1db40505f1cfe',1,'std::tr1']]],
   ['hex',['hex',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a01138.html#a6657c6357b609abbfd0507c8d1cdc90c',1,'std']]],
+  ['hoyermeasure',['hoyerMeasure',['../struct_h_m_m_comp.html#a6d7787edd9bb75db00d3d60c42d3be4a',1,'HMMComp']]],
   ['hyperg',['hyperg',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a01178.html#ga57ad342db098de022be6802adddf20c7',1,'std::tr1']]],
   ['hypergf',['hypergf',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a01178.html#ga078cd21d3faa9c6f204d9789a3e3353b',1,'std::tr1']]],
   ['hypergl',['hypergl',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a01178.html#ga77e46a1a668e20c083968b49c4e79cb7',1,'std::tr1']]]

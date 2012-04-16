@@ -1,6 +1,7 @@
 var searchData=
 [
   ['n',['n',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00408.html#a121516be31436ba471ab0a71e95f6350',1,'std::chi_squared_distribution::n()'],['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00409.html#a60d81a30ead0200df6fd38b0783cecf9',1,'std::chi_squared_distribution::param_type::n()'],['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00460.html#aabab829609d3a0d6f62fbbfb259e66ff',1,'std::fisher_f_distribution::n()'],['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00461.html#a3a41dda404a185e3b38a7e19cf227a07',1,'std::fisher_f_distribution::param_type::n()'],['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00657.html#a02dcdcfb3f5f78642e85fc5610deb0ec',1,'std::student_t_distribution::n()'],['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00658.html#a806f7a7ff9e32a65c4b58e65109bf12f',1,'std::student_t_distribution::param_type::n()']]],
+  ['n_5f',['N_',['../class_h_m_m.html#a1306a888c8af856c227ac69d3d5c2384',1,'HMM']]],
   ['name',['name',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00452.html#aedfb62c36931c89dce4919d996cc5cc5',1,'std::error_category::name()'],['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00540.html#a0cb732617d34d808b18bf460a73aa9d8',1,'std::locale::name()'],['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00714.html#a7502de0f055f0a3f6ea0cdb56f03d5b1',1,'std::type_info::name()']]],
   ['nano',['nano',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a01174.html#gaa0aa77b25868dc8b27dd73eb54c47818',1,'std']]],
   ['nanoseconds',['nanoseconds',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a01147.html#a41d0bd8a6e031eb9321ad13de37723de',1,'std::chrono']]],
@@ -32,6 +33,7 @@ var searchData=
   ['norm',['norm',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a01166.html#gaa9404c436c29f9d349217d29fa628af7',1,'std::norm()'],['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a01166.html#gafe697ff5ee96c45af4cb9b18a51e6425',1,'std::tr1::norm()']]],
   ['normal_5fdistribution',['normal_distribution',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00268.html',1,'std']]],
   ['normal_5fdistribution',['normal_distribution',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00268.html#a658ac956ac7ba2337b60388d188d09cf',1,'std::normal_distribution::normal_distribution(result_type __mean=result_type(0), result_type __stddev=result_type(1))'],['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00268.html#a9190b33d9dca58619a7123b7280d23ff',1,'std::normal_distribution::normal_distribution(const param_type &amp;__p)']]],
+  ['normalizedginiindex',['normalizedGiniIndex',['../struct_h_m_m_comp.html#a29b2ea978a415a7d2c696e2399a00ee0',1,'HMMComp']]],
   ['noshowbase',['noshowbase',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a01138.html#ae40e0e6a5a4292cc070a737693bce4ab',1,'std']]],
   ['noshowpoint',['noshowpoint',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a01138.html#acacc67bedbef4625ffdf88d2b188a9f5',1,'std']]],
   ['noshowpos',['noshowpos',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a01138.html#ab7219399afb34c97c7c439be76b2eb49',1,'std']]],
@@ -54,8 +56,8 @@ var searchData=
   ['num',['num',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a01174.html#ga6db6cc04519b1949c86ed3b2b60ef033',1,'std::ratio']]],
   ['num_5fget',['num_get',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00579.html',1,'std']]],
   ['num_5fget',['num_get',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00579.html#a074eb427906209a5fbfa7f069ede6b6b',1,'std::num_get']]],
-  ['num_5fput',['num_put',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00580.html',1,'std']]],
   ['num_5fput',['num_put',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00580.html#a8c248a63cf9ad3dcf26f93f1b1b75d9c',1,'std::num_put']]],
+  ['num_5fput',['num_put',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00580.html',1,'std']]],
   ['numeric',['numeric',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00959.html',1,'(Global Namespace)'],['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00540.html#a50c9f58112ca40d3d53b07e1d524228b',1,'std::locale::numeric()']]],
   ['numeric_5flimits',['numeric_limits',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00581.html',1,'std']]],
   ['numeric_5flimits_3c_20bool_20_3e',['numeric_limits< bool >',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00582.html',1,'std']]],
@@ -80,6 +82,6 @@ var searchData=
   ['numericfwd_2eh',['numericfwd.h',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00963.html',1,'']]],
   ['numpunct',['numpunct',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00600.html#ab735f1fdfc597150f2cb2619735d75bb',1,'std::numpunct::numpunct(size_t __refs=0)'],['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00600.html#a14c5c77559d8e42b3bf279f9508232db',1,'std::numpunct::numpunct(__cache_type *__cache, size_t __refs=0)'],['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00600.html#aea7df1e8fe9c7bd9969e92c5efd2e3e0',1,'std::numpunct::numpunct(__c_locale __cloc, size_t __refs=0)']]],
   ['numpunct',['numpunct',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00600.html',1,'std']]],
-  ['numpunct_5fbyname',['numpunct_byname',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00601.html',1,'std']]],
-  ['numpunct_5fbyname',['numpunct_byname',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00601.html#a2f0bcd896416d808f705d04c8aa7ef8b',1,'std::numpunct_byname']]]
+  ['numpunct_5fbyname',['numpunct_byname',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00601.html#a2f0bcd896416d808f705d04c8aa7ef8b',1,'std::numpunct_byname']]],
+  ['numpunct_5fbyname',['numpunct_byname',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00601.html',1,'std']]]
 ];

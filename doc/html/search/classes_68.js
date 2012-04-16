@@ -29,5 +29,7 @@ var searchData=
   ['hash_5fmap',['hash_map',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00052.html',1,'__gnu_cxx']]],
   ['hash_5fmultimap',['hash_multimap',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00053.html',1,'__gnu_cxx']]],
   ['hash_5fmultiset',['hash_multiset',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00054.html',1,'__gnu_cxx']]],
-  ['hash_5fset',['hash_set',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00055.html',1,'__gnu_cxx']]]
+  ['hash_5fset',['hash_set',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00055.html',1,'__gnu_cxx']]],
+  ['hmm',['HMM',['../class_h_m_m.html',1,'']]],
+  ['hmmcomp',['HMMComp',['../struct_h_m_m_comp.html',1,'']]]
 ];

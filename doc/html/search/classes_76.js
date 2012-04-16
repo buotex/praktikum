@@ -8,6 +8,10 @@ var searchData=
   ['vector',['vector',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00284.html',1,'std::__debug']]],
   ['vector',['vector',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00730.html',1,'std']]],
   ['vector_3c_20_5fpiece_3c_20_5fdifferencetype_20_3e_20_3e',['vector< _Piece< _DifferenceType > >',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00730.html',1,'std']]],
+  ['vector_3c_20arma_3a_3amat_20_3e',['vector< arma::mat >',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00730.html',1,'std']]],
   ['vector_3c_20bool_2c_20_5falloc_20_3e',['vector< bool, _Alloc >',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00731.html',1,'std']]],
+  ['vector_3c_20gm_20_3e',['vector< GM >',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00730.html',1,'std']]],
+  ['vector_3c_20gmm_20_3e',['vector< GMM >',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00730.html',1,'std']]],
+  ['vector_3c_20match_3c_20histogramindextype_20_3e_20_3e',['vector< Match< HistogramIndexType > >',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00730.html',1,'std']]],
   ['vector_3c_20std_3a_3asub_5fmatch_3c_20_5fbi_5fiter_20_3e_2c_20_5fallocator_20_3e',['vector< std::sub_match< _Bi_iter >, _Allocator >',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00730.html',1,'std']]]
 ];

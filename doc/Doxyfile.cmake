@@ -568,7 +568,7 @@ WARN_LOGFILE           =
 # directories like "/usr/src/myproject". Separate the files or directories
 # with spaces.
 
-INPUT                  = @GEDLIB_SOURCE_DIR@/doc @GEDLIB_SOURCE_DIR@/include/fbi
+INPUT                  = @GEDLIB_SOURCE_DIR@/doc @GEDLIB_SOURCE_DIR@/include @GEDLIB_SOURCE_DIR@/include/hmm
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding, which is

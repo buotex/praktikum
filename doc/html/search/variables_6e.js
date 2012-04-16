@@ -1,5 +1,6 @@
 var searchData=
 [
+  ['n_5f',['N_',['../class_h_m_m.html#a1306a888c8af856c227ac69d3d5c2384',1,'HMM']]],
   ['none',['none',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00540.html#a70bef0686be2c1b746e21069f73415b8',1,'std::locale']]],
   ['nosubs',['nosubs',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a00390.html#a503f51552f2d0d5143301d11622d9f56',1,'std::basic_regex::nosubs()'],['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a01151.html#a1015bef82a7e2069722b83618be5c3e3',1,'std::regex_constants::nosubs()']]],
   ['nothrow',['nothrow',['http://gcc.gnu.org/onlinedocs/libstdc++/latest-doxygen/a01138.html#ae4b7b14b5246bacb54f2a4ae366ccd44',1,'std']]],
