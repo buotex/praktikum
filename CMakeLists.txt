@@ -96,16 +96,21 @@ ENDIF (ENABLE_EXAMPLES)
 #############################################################################
 # documentation
 #############################################################################
+  find_package(Doxygen)
+if(DOXYGEN_FOUND)
 # doxygen support
-CONFIGURE_FILE(${GEDLIB_SOURCE_DIR}/doc/Doxyfile.cmake
-    ${GEDLIB_BINARY_DIR}/doc/Doxyfile
-    @ONLY IMMEDIATE
-    )
-FIND_PACKAGE(Doxygen)
+
+  CONFIGURE_FILE(${GEDLIB_SOURCE_DIR}/doc/Doxyfile.cmake
+      ${GEDLIB_BINARY_DIR}/doc/Doxyfile
+      @ONLY IMMEDIATE
+      )
 
 # target for doxygen
-ADD_CUSTOM_TARGET(doc COMMAND ${DOXYGEN} ${GEDLIB_BINARY_DIR}/doc/Doxyfile)
+ADD_CUSTOM_TARGET(doc ${DOXYGEN_EXECUTABLE} ${GEDLIB_BINARY_DIR}/doc/Doxyfile WORKING_DIRECTORY ${GEDLIB_BINARY_DIR} 
+COMMENT "Generating API documentation with Doxygen" VERBATIM
+)
 
+endif(DOXYGEN_FOUND)
 
 INCLUDE(CPack)
 
