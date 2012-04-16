@@ -9,21 +9,12 @@
 
 #ifndef __INCLUDE_HMM_GMM_HPP__
 #define __INCLUDE_HMM_GMM_HPP__
-bool hasZeros(arma::mat & data) {
-  arma::uvec temp = arma::find(data);
-  return temp.n_elem != data.n_elem; 
-}
 
-template< class T >
-void reorder(std::vector<T> &v, std::vector<size_t> const &order )  {   
-    for ( size_t s = 1, d; s < order.size(); ++ s ) {
-        for ( d = order[s]; d < s; d = order[d] ) ;
-        if ( d == s ) while ( d = order[d], d != s ) std::swap( v[s], v[d] );
-    }
-}
-
-
-
+/** 
+ *  \class GM
+ *  \brief A class to represent a gaussian model, using armadillo matrices
+ *
+ * */
 class GM {
   unsigned int D_;
 
@@ -31,6 +22,7 @@ class GM {
   arma::mat sigma_;
   arma::mat invSigma_;
 
+  /**The coeff is cached and recalculated on a sigma change */ 
   double coeff_; 
   
   public:
@@ -44,11 +36,14 @@ class GM {
     return sigma_;
   }
 
+  /** Probability for a single vector*/
   double getProb(const arma::vec & loc) const {
     const arma::vec diff = loc - mu_;
     double exponent = -0.5 * arma::as_scalar(diff.t() * invSigma_ * diff); //TODO: check how transpose works
     return coeff_ * std::exp(exponent);
   }
+
+  /** For optimization reasons (to use vector multiplication), return the probability of a set of column-vectors*/
   arma::rowvec getDataProb(const arma::mat & data) const {
     const arma::mat diff = data - mu_ * arma::ones(1, data.n_cols);
     arma::rowvec exponent = -0.5 * arma::sum((invSigma_.t() * diff) % diff);
@@ -56,6 +51,8 @@ class GM {
 
   }
 
+
+  
   void
     setSigma(const arma::mat & sigma) {
       D_ = sigma.n_rows;
@@ -82,6 +79,7 @@ class GM {
     setMu(mu);
     setSigma(sigma);
   }
+  /** For debugging reasons*/
   bool sanityCheck() const {
     bool sane = false;
     if (D_ == 0 || arma::det(sigma_) == 0 || !invSigma_.is_finite()) sane = false;
@@ -100,6 +98,11 @@ class GM {
     sigma_.print("Sigma");
   }
 };
+
+/** 
+ * \brief Models a Gaussian mixture model
+ *
+ * */
 
 class GMM {
   //a vector of gaussian models
@@ -131,22 +134,8 @@ class GMM {
   GM const & getGM(unsigned int index) const {
     return mixture_[index];
   }
-  arma::vec sort(unsigned int dimension) {
-    //sort mixture_ according to mean-values in dimension
-    arma::mat means;
-    for (size_t i = 0; i < mixture_.size(); ++i) {
-      means = arma::join_rows(means, mixture_[i].getMu());
-    }
-    arma::rowvec relevantDim = means.row(dimension);
-    arma::urowvec indices = arma::sort_index(relevantDim);
-    weights_ = weights_.elem(indices);
-    std::vector<size_t> vindices = arma::conv_to<std::vector<size_t> >::from(indices);
-    reorder(mixture_, vindices);
 
-
-    return mixture_[0].getMu(); 
-  }
-
+  /** Removes any Gaussian models whose correspondent weight is zero or less*/
   arma::uvec
   cleanupGMs() {
     arma::uvec goodIndices = arma::find(weights_ > 0);
@@ -159,6 +148,8 @@ class GMM {
     }
     return goodIndices;
   }
+  
+
   
   bool  
     updateGM(unsigned int index, double weight, const arma::vec & mu, const arma::mat & sigma) {
@@ -201,6 +192,8 @@ class GMM {
     return arma::conv_to<arma::vec>::from(mu * weights_);
   }
 
+/** Return the probability of a vector, given the current mixture model. Only takes the models in [start, end) into
+ * account.*/
   double getProb(const arma::vec & datum, unsigned int start, unsigned int end) const {
     double prob = 0.;
     for(unsigned int i = start; i < end; ++i) {
@@ -215,7 +208,14 @@ class GMM {
     return getProb(datum, 0, (unsigned int)mixture_.size());
   }
 
+
   //implementation of the EM-algorithm
+  /** 
+   * \brief Find the best Gaussian mixture model for given data, via the EM-algorithm
+   * \param[in] data The data that the model should be fitted to
+   * \param[in] kmin the minimum number of Gaussian models that should be used
+   * \param[in] kmax the maximum number (and therefore starting number) of Gaussian models that should be used
+   * \see "Unsupervised learning of finite mixture models", M. Figueiredo and A. K. Jain,  http://www.lx.it.pt/~mtf/IEEE_TPAMI_2002.pdf  */
   void
     //TODO:perhaps use a matrix for the data?
     //k == number of mixtures
@@ -354,11 +354,15 @@ class GMM {
 
         --knz;
         --k;
-        //std::cout << "knz: " << knz << std::endl;
       }
 
 
     }
+
+    /** 
+     * \brief Initialize the Mixture model by picking a random subset of the data which will become the means
+     * for every Gaussian model
+     * */
   std::vector<GM> initMixtureModel(const arma::mat & data, unsigned int kmax) {
     std::vector<GM> mixtureCandidate(kmax);
     unsigned int n = data.n_cols; //number of data elements;
@@ -377,6 +381,12 @@ class GMM {
 
 
 };
+
+/** 
+ *  \class MatrixTransformationFunctor
+ *  \brief A functor to apply a transformation Matrix to a Gaussian Mixture Model
+ *
+ * */
 struct MatrixTransformationFunctor {
   const arma::mat transMatrix_;
   MatrixTransformationFunctor(const arma::mat & transMatrix):transMatrix_(transMatrix) {}
@@ -403,14 +413,15 @@ struct MatrixTransformationFunctor {
     return transformGMM(gmm);
   }
 };
-struct IdentityFunctor {
-  GMM operator()(const GMM & gmm) const {
-    return gmm;
-  }
-};
-
+/** 
+ * \class GMMCreator
+ * \brief A class to construct a set of Gaussian Mixture Models where every Label is assigned a GMM
+ *
+ * */
 struct GMMCreator {
+  /** Minimum Number of GMs per Model*/
   unsigned int kmin_;
+  /** Maximum Number of GMs per Model*/
   unsigned int kmax_;
   
   GMMCreator(unsigned int kmin, unsigned int kmax): kmin_(kmin), kmax_(kmax) {}

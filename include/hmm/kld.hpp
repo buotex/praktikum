@@ -5,8 +5,43 @@
 #ifndef __INCLUDE_HMM_KLD_HPP__
 #define __INCLUDE_HMM_KLD_HPP__
 
-
+/** 
+ * \class HMMComp
+ * \brief A class to calculate similarities/distances between Hidden Markov Models
+ *
+ * */
 struct HMMComp{
+  /** 
+   *  \function findStationary
+   *  \brief Assuming that the Hidden Markov Model has underlying stationary probabilities, 
+   *  find pi with pi * A = pi;
+   *  \param[in] A Matrix with transition probabilities
+   *  \return pi stationary probability vector
+   * */
+ static
+   arma::rowvec findStationary(const arma::mat & A, unsigned int steps = 1000, double eps = 1E-2) {
+     arma::rowvec x = arma::ones(1,A.n_rows);
+     arma::rowvec oldx = arma::ones(1,A.n_rows);
+     for (unsigned int i = 0; i < steps; ++i) {
+       x = oldx * A;
+       if (arma::norm(x - oldx, "inf") < eps) return x;
+       oldx = x;
+     }
+     arma::rowvec newx = x * A;
+     x.print("oldX");
+     newx.print("newX");
+     return arma::zeros(1, A.n_rows);
+   }
+  
+
+   /** 
+    * Assuming that there exists a linear transformation between the underlying data of hmm1 and hmm2,
+    * try to reverse-engineer it.
+    * This method picks the most probable states (according to their stationary probability \see findStationary),
+    * and calculates the coordinate transformation necessary to align their most important sigmas.
+    * This is likely a very crude guess to the transformation and thus not recommended.
+    *
+    * */
   static
   arma::mat
   findTransformationMatrix(const HMM & hmm1, const HMM & hmm2) {
@@ -35,9 +70,23 @@ struct HMMComp{
       return transformation;
 
   }
+
+   /** 
+    * Assuming that there exists a linear transformation between the underlying data of hmm1 and hmm2,
+    * try to reverse-engineer it.
+    * This method picks the center of masses of the most probable states (\see findStationary) for both HMMs,
+    * returning a Transformation Matrix for every match-permutation. For a 3d-problem, this for example requires
+    * 3 points for both HMMs, resulting in 6 different matches.
+    * The method works well in reversing rotations, mirroring and similar operations.
+    *
+    * \return TransformationMatrices, packed in an armadillo cube. Every slice is one possible transformation, the most
+    * probable is returnval.slice(0)
+    * */
+
+
  static
   arma::cube
-  findTransformationMatrix2(const HMM & hmm1, const HMM & hmm2) {
+  findTransformationCube(const HMM & hmm1, const HMM & hmm2) {
       unsigned int j1 = 0, j2 = 0;
       arma::mat coord1, coord2;
 
@@ -91,8 +140,6 @@ struct HMMComp{
         indices(i) = i;
       }
 
-      coord1.print("coord1");
-      coord2.print("coord2");
       arma::cube transformation;
       do {
 
@@ -111,22 +158,10 @@ struct HMMComp{
   }
 
 
+ /** Helper Function for the Unscented Transform, 
+  * \see "An Efficient Image Similarity Measure based on Approximations of KL-Divergence Between Two Gaussian Mixtures",
+  * by Goldberger, Gordon, Greenspan*/ 
 
-
- static
-   arma::rowvec findStationary(const arma::mat & A, unsigned int steps = 1000, double eps = 1E-2) {
-     arma::rowvec x = arma::ones(1,A.n_rows);
-     arma::rowvec oldx = arma::ones(1,A.n_rows);
-     for (unsigned int i = 0; i < steps; ++i) {
-       x = oldx * A;
-       if (arma::norm(x - oldx, "inf") < eps) return x;
-       oldx = x;
-     }
-     arma::rowvec newx = x * A;
-     x.print("oldX");
-     newx.print("newX");
-     return arma::zeros(1, A.n_rows);
-   }
  static
    arma::mat
    samplePointOffsets(const arma::mat & M) {
@@ -143,9 +178,17 @@ struct HMMComp{
      return rootK;
    }
 
+ /**
+  * Based on an algorithm described in 
+  * \see "An Efficient Image Similarity Measure based on Approximations of KL-Divergence Between Two Gaussian Mixtures",
+  * by Goldberger, Gordon, Greenspan
+  * While the algorithm normally calculates the Kullback-Leibler distance KL(f||g) which features logarithms, 
+  * we aren't interested in the distance itself but rather in exp(-KL(f||g)), which enables slight changes to
+  * their original algorithm to prevent infinite distances.
+  * \return The similarity between two GMMs, in [0,1]
+  */
 
- //src: A Distance measure between GMMs based on the unscented transform//
- //To prevent infinities from happening, we'll already calculate e^-D here
+
  static 
    double
    expUnscentedTransform(const GMM & gmm1, const GMM & gmm2, double K = 0.5) {
@@ -162,26 +205,23 @@ struct HMMComp{
        arma::mat x_1 = mu * arma::ones(1, d) + offsets;
        arma::mat x_2 = mu * arma::ones(1, d) - offsets;
        arma::mat x_i = arma::join_rows(x_1, x_2);
-       //x_i.print("x_i");
        for (unsigned int k = 0; k < 2 * d; ++k) {
-         //val += weights(i) * std::log(gmm2.getProb(x_i.col(k)));
          val *= std::pow(gmm1.getProb(x_i.col(k)),-K * weights(i) * prefix); 
          val *= std::pow(gmm2.getProb(x_i.col(k)),K * weights(i) * prefix); 
-         //std::cout << "prob: " << gmm1.getProb(x_i.col(k)) << "weight: " << weights(i) << std::endl;
-         //std::cout << "prob: " << gmm2.getProb(x_i.col(k)) << "weight: " << weights(i) << std::endl;
-         //std::cout << "entry " << val << std::endl;
        }
      }
-     //std::cout << "FUBLA "  << val << std::endl << std::endl;
 
      return val;
    }
+  /** One of the Measures for the sparsity of a vector */
 
  static double
    hoyerMeasure(const arma::vec & u) {
      double N = (double)u.n_elem;
      return (std::sqrt(N) - arma::norm(u,1) / arma::norm(u,2)) / (std::sqrt(N) - 1);
    }
+
+  /** One of the Measures for the sparsity of a vector */
  static 
    double
    giniIndex(const arma::vec & u) {
@@ -197,6 +237,9 @@ struct HMMComp{
      //std::cout << "sum: " << sum << std::endl;
      return 1. - 2. * sum; 
    }
+
+
+ /** One of the Measures for the sparsity of a vector */
  static
    double
    normalizedGiniIndex(const arma::vec & u) {
@@ -204,6 +247,17 @@ struct HMMComp{
      if (N == 1. || arma::norm(u,1) == 0) return 0.;
      return N/(N-1.) * giniIndex(u);
    }
+   
+
+  /** 
+   *   Based on \see "A Novel Low-Complexity HMM Similarity Measure", by Sahraeian, Yoon
+   *   
+   *   Slight changes were made to create more representative results, as the quality of the
+   *   matches between states was also taken into account instead of just the sparsity of the
+   *   matching matrix.
+   *
+   * */
+
  template <typename TransformationFunctor = IdentityFunctor>
    static
    double
@@ -211,8 +265,6 @@ struct HMMComp{
      //calculate stationary probabilities for the states
      arma::rowvec pi1 = findStationary(hmm1.A_);
      arma::rowvec pi2 = findStationary(hmm2.A_);
-     pi1.print("pi1");
-     pi2.print("pi2");
 
 
      //calculate Qij matrix, which represent the similarity between the states in both matrices

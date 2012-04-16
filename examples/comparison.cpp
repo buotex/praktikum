@@ -58,8 +58,8 @@ int main() {
   //How robust is our algorithm regarding to shuffling? Keep in mind, that HMMs are time-dependent and will change when
   //you change the order of the input data.
   std::function<arma::mat (const arma::mat &)> shuffling = 
-  std::bind(arma::shuffle, std::placeholders::_1, 1);
-  HMM hmm3 = buildHMM(parsePdb("data/3F27.pdb"), creator, kmeansFunctor.(shuffling));
+  [] (const arma::mat &data) { return arma::shuffle(data, 1);};
+  HMM hmm3 = buildHMM(parsePdb("data/3F27.pdb"), creator, kmeansFunctor.bind(shuffling));
   
   
   //Let's try a transformation to our data: Extract it, then rotate it around the Z and X axis according to the values
@@ -87,10 +87,10 @@ int main() {
   std::cout << HMMComp::sMrandomWalk(hmm2, hmm4) << std::endl;
  
 
-  std::cout << "Transformations were made to the original data - transform back!"
+  std::cout << "Transformations were made to the original data - transform back!";
   //We will now try to reconstruct the linear transformation made before, to enable a better matching
   arma::mat transformation1 = HMMComp::findTransformationMatrix(hmm2, hmm4);
-  arma::cube transformation2 = HMMComp::findTransformationMatrix2(hmm2, hmm4);
+  arma::cube transformation2 = HMMComp::findTransformationCube(hmm2, hmm4);
 
   MatrixTransformationFunctor mtf1(transformation1);
   std::cout << HMMComp::sMrandomWalk(hmm2, hmm4, mtf1) << std::endl;
@@ -99,7 +99,15 @@ int main() {
   std::cout << HMMComp::sMrandomWalk(hmm2, hmm4, mtf2) << std::endl;
 
 
+// =================================================================================//
 
+  ProteinChainFunctor pFunctor;
+  //Let's now create 2 hmms and label them via their chains
+  HMM hmm5 = buildHMM(parsePdb("data/2HDZ.pdb"), creator, pFunctor);
+  HMM hmm6 = buildHMM(parsePdb("data/3F27.pdb"), creator, pFunctor);
+
+
+  std::cout << HMMComp::sMrandomWalk(hmm5, hmm6) << std::endl;
 }
 
 

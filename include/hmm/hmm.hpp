@@ -5,25 +5,54 @@
 #ifndef __INCLUDE_HMM_HMM_HPP__
 #define __INCLUDE_HMM_HMM_HPP__
 
+/** 
+ *  \class HMM
+ *  \brief A Class to represent a Hidden Markov Model
+ *  
+ *  This model is made with Gaussian Mixture Models as underlying probability density functions in mind, 
+ *  instead of the discrete variant. 
+ *  Its primary focus is to solve the 3. problem given by Rabiner: Given a certain amount of data, 
+ *  calculate the most probable parameters A, B, pi, representing the transition, emitting and starting probabilities.
+ *  While A and pi will be initiated by reasonable default values, B has to be passed from outside.
+ *
+ *  It is advised to use the caching variants of the functions, as these reduce the
+ *  computation speed many times over - probabilities don't have to be re-calculated as often.
+ *  
+ *
+ *  \see "A Tutorial on Hidden Markov Models and Selected Applications in Speech Recognition", by LR Rabiner
+ *  \see An Erratum for "A Tutorial on Hidden Markov Models[...]", Ali Rahimi, http://xenia.media.mit.edu/~rahimi/rabiner/rabiner-errata/rabiner-errata.html#rabiner
+ *  
+ *
+ * */
+
 class HMM {
-  unsigned int N_; //number of states, Q= { 0, ... , N-1}
+  /** Number of states of the model*/
+  unsigned int N_; 
+  /** Number of timesteps / dataitems of the model*/
   unsigned int T_;
-  arma::mat A_; //transition probabilities
-  std::vector<GMM> BModels_; //Gaussian mixture models
+  /** Transition probabilities for the different states to each other*/
+  arma::mat A_; 
+  /** A GMM for every state */
+  std::vector<GMM> BModels_; 
+  /** cached probabilities for every dataitem according to the GMM*/
   arma::mat B_;
+  /** Initial state distribution*/
+  arma::rowvec pi_; 
+  /** Loglikelihood of the calculated model for the given data*/
+  double pprob_;
+
+
   std::vector<arma::mat> gammaLts_;
-  arma::rowvec pi_; //initial state distribution
   arma::mat alpha_;
   arma::mat beta_;
   arma::mat gamma_;
   arma::cube xi_;
   arma::rowvec c_;
-  double pprob_;
   double eps_;
-  //for debugging purposes
 
  friend class HMMComp;
- 
+
+/** For debugging reasons*/ 
   void checkAllComponents() {
    
     arma::vec rowSumA = arma::sum(A_, 1);
@@ -88,10 +117,14 @@ class HMM {
     }
   double baumWelch(const arma::mat & data, const std::vector<GMM> & B, unsigned int seed);
   double baumWelch(const arma::mat & data, unsigned int seed);
+  /** The function that should be called most of the time, calculating the best parameters given data
+   *  Caches the different probabilities to enable matrix multiplications
+   * */
   double baumWelchCached(const arma::mat & data, const std::vector<GMM> & B, unsigned int seed);
   double baumWelchCached(const arma::mat & data, unsigned int seed);
-  void createGMM(const arma::mat & data, const arma::urowvec & labels, unsigned int kmin, unsigned int kmax);
   //Warning: This will invalidate the internal data other than the relevant model data A, B and pi.  private:
+  
+  private:
   void init(const std::vector<GMM> & B, unsigned int seed, double eps);
   void allocateMemory(unsigned int);
   void cacheProbabilities(const arma::mat & data);
@@ -168,7 +201,6 @@ HMM::cacheProbabilities(const arma::mat & data) {
             gm.print("gm");
             arma::vec test3 = arma::trans(gm.getDataProb(data));
             //test3.print("test3");
-            //gm.sanityCheck();
           }
         }
       }
@@ -336,7 +368,6 @@ HMM::baumWelch(const arma::mat & data, const std::vector<GMM> & B, unsigned int 
           gamma_lt.row(t) /= sumProb; 
         }
       }
-      //gamma_lt.print("gamma_lt");
 
       double scale = 1./arma::accu(gamma_.row(i));
       for (unsigned int l = 0; l < numComponents; ++l) {
@@ -416,7 +447,6 @@ HMM::baumWelchCached(const arma::mat & data, const std::vector<GMM> & B, unsigne
           gamma_lt.row(t) /= sumProb; 
         }
       }
-      //gamma_lt.print("gamma_lt");
 
       double scale = 1./arma::accu(gamma_.row(i));
       for (unsigned int l = 0; l < numComponents; ++l) {
