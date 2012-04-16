@@ -409,4 +409,24 @@ struct IdentityFunctor {
   }
 };
 
+struct GMMCreator {
+  unsigned int kmin_;
+  unsigned int kmax_;
+  
+  GMMCreator(unsigned int kmin, unsigned int kmax): kmin_(kmin), kmax_(kmax) {}
+
+  std::vector<GMM>
+    operator() (const arma::mat & data, const arma::urowvec & labels) {
+      const unsigned int numLabels = (unsigned int) arma::as_scalar(arma::max(labels)) + 1;
+      std::vector<GMM> BModels;
+
+      for (unsigned int i = 0; i < numLabels; ++i){
+        arma::uvec indices = arma::find(labels == i);
+        if (indices.n_elem > 0) {
+          BModels.push_back(GMM(data.cols(indices), kmin_, kmax_));
+        }
+      }
+      return BModels;
+    }
+};
 #endif

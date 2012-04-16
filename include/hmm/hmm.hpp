@@ -4,6 +4,7 @@
 
 #ifndef __INCLUDE_HMM_HMM_HPP__
 #define __INCLUDE_HMM_HMM_HPP__
+
 class HMM {
   unsigned int N_; //number of states, Q= { 0, ... , N-1}
   unsigned int T_;
@@ -17,7 +18,6 @@ class HMM {
   arma::mat gamma_;
   arma::cube xi_;
   arma::rowvec c_;
-  arma::rowvec C_;
   double pprob_;
   double eps_;
   //for debugging purposes
@@ -77,7 +77,6 @@ class HMM {
     }
   }
   public:
-  HMM():eps_(1E-5){}
   void
     print(std::string header = "") {
       A_.print("A");
@@ -87,38 +86,13 @@ class HMM {
       pi_.print("pi");
 
     }
-  void setEps(double eps) {eps_ = eps;}
   double baumWelch(const arma::mat & data, const std::vector<GMM> & B, unsigned int seed);
   double baumWelch(const arma::mat & data, unsigned int seed);
   double baumWelchCached(const arma::mat & data, const std::vector<GMM> & B, unsigned int seed);
   double baumWelchCached(const arma::mat & data, unsigned int seed);
   void createGMM(const arma::mat & data, const arma::urowvec & labels, unsigned int kmin, unsigned int kmax);
-  //Warning: This will invalidate the internal data other than the relevant model data A, B and pi.
-  void
-    sort(unsigned int dimension) {
-      arma::mat means; 
-      //1. step: sort all B_; according to their median
-      try{
-        for (size_t i = 0; i < BModels_.size(); ++i) {
-          means = arma::join_rows(means, BModels_[i].sort(dimension));
-        }
-      }
-      catch(const std::logic_error & e) {
-        throw e;
-      }
-      means.print("means");
-      arma::rowvec relevantDim = means.row(dimension);
-      arma::urowvec indices = arma::sort_index(relevantDim);
-      print();
-      indices.print("indices");
-      A_ = A_.submat(indices, indices);
-      pi_ = pi_.elem(indices).t();
-      std::vector<size_t> vindices = arma::conv_to<std::vector<size_t> >::from(indices);
-      reorder(BModels_, vindices);  
-      print();
-    }
-  private:
-  void init(const std::vector<GMM> & B, unsigned int seed);
+  //Warning: This will invalidate the internal data other than the relevant model data A, B and pi.  private:
+  void init(const std::vector<GMM> & B, unsigned int seed, double eps);
   void allocateMemory(unsigned int);
   void cacheProbabilities(const arma::mat & data);
 
@@ -135,20 +109,11 @@ class HMM {
 
 
 };
-void
-HMM::createGMM(const arma::mat & data, const arma::urowvec & labels, unsigned int kmin, unsigned int kmax) {
-  const unsigned int numLabels = (unsigned int) arma::as_scalar(arma::max(labels)) + 1;
-  BModels_.clear();
-
-  for (unsigned int i = 0; i < numLabels; ++i){
-    arma::uvec indices = arma::find(labels == i);
-    BModels_.push_back(GMM(data.cols(indices), kmin, kmax));
-  }
-
-}
 
 void 
-HMM::init(const std::vector<GMM> & B, unsigned int seed = 0) {
+HMM::init(const std::vector<GMM> & B, unsigned int seed = 0, double eps = 1E-4) {
+
+  eps_ = eps;
   std::srand(seed);
   N_ = (unsigned int) B.size();
   A_ = arma::randu(N_,N_);

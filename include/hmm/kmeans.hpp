@@ -3,10 +3,25 @@
 #ifndef __INCLUDE_HMM_KMEANS_HPP__
 #define __INCLUDE_HMM_KMEANS_HPP__
 
+/** 
+ *  Pack of parameters for Kmeans
+ *
+ * */
+struct KMeansParams {
+  size_t numClusters_;
+  size_t maxIterations_;
+  size_t purgingThreshold_;
+
+  KMeansParams(size_t nC, size_t mI = 100, size_t pT = 1): numClusters_(nC), maxIterations_(mI), purgingThreshold_(pT){}
+
+};
+
 
 
 arma::urowvec
-kmeansLoop(const arma::mat & data, arma::mat & means, size_t maxIterations, size_t purgingThreshold) {
+kmeansLoop(const arma::mat & data, arma::mat & means, KMeansParams params) {
+  size_t maxIterations = params.maxIterations_;
+  size_t purgingThreshold = params.purgingThreshold_;
   double checksum = 0;
   double oldChecksum = 0;
   size_t counter = 0;
@@ -61,16 +76,14 @@ kmeansLoop(const arma::mat & data, arma::mat & means, size_t maxIterations, size
       }
     }
     means /= (arma::ones(data.n_rows, 1) * meanCounter);
-
-
-
-
   }
 
   return labels;
 }
+
+/** Kmeans algorithm, starting with randomized labels for every datapoint */
 arma::urowvec
-kmeansRandom(const arma::mat & data, arma::mat & means, size_t maxIterations, size_t purgingThreshold) {
+kmeansRandom(const arma::mat & data, arma::mat & means, KMeansParams params) {
 
   arma::urowvec labels(data.n_cols);
   unsigned int numMaxClusters = means.n_cols;
@@ -92,11 +105,15 @@ kmeansRandom(const arma::mat & data, arma::mat & means, size_t maxIterations, si
   }
   means /= meanCounter;
 
-  return kmeansLoop(data, means, maxIterations - 1, purgingThreshold);
+  return kmeansLoop(data, means, params);
 
 }
+/** KMeans algorithm, doing a run with a small subset of the data and using the resulting means as a starting point*/
 arma::urowvec
-kmeansWithSubset(const arma::mat & data, unsigned int numMaxClusters, size_t maxIterations, size_t purgingThreshold) {
+kmeansWithSubset(const arma::mat & data, KMeansParams params) {
+
+  unsigned int numClusters = (unsigned int) params.numClusters_;
+
   unsigned int vecSize = data.n_cols;
   arma::mat subset(data.n_rows, (unsigned int)sqrt(vecSize));
   std::mt19937 rSeedEngine;
@@ -105,22 +122,25 @@ kmeansWithSubset(const arma::mat & data, unsigned int numMaxClusters, size_t max
     unsigned int randIndex = Distribution(0, vecSize-1)(rSeedEngine);
     subset.col(i) = data.col(randIndex);
   }
-  arma::mat means = arma::mat(data.n_rows, numMaxClusters);
-  kmeansRandom(subset,means, maxIterations, purgingThreshold);
-  return kmeansLoop(data, means, maxIterations, purgingThreshold);
+  arma::mat means = arma::mat(data.n_rows, numClusters);
+  kmeansRandom(subset,means, params);
+  return kmeansLoop(data, means, params);
 
 }
+
+/** Default KMeans algorithm, picking random datapoints as starting means*/
 arma::urowvec
-kmeans(const arma::mat & data, unsigned int numMaxClusters, size_t maxIterations, size_t purgingThreshold) {
+kmeans(const arma::mat & data, KMeansParams params) {
+  unsigned int numClusters = (unsigned int) params.numClusters_;
   unsigned int vecSize = data.n_cols;
   std::mt19937 rSeedEngine;
   typedef std::uniform_int_distribution<unsigned int> Distribution;
-  arma::mat means = arma::mat(data.n_rows, numMaxClusters);
+  arma::mat means = arma::mat(data.n_rows, numClusters);
   for (unsigned int i = 0; i < means.n_cols; ++i) {
     unsigned int randIndex = Distribution(0, vecSize-1)(rSeedEngine);
     means.col(i) = data.col(randIndex);
   }
-  return kmeansLoop(data, means, maxIterations, purgingThreshold);
+  return kmeansLoop(data, means, params);
 }
 
 

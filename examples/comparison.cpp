@@ -38,78 +38,65 @@ rotZ(const arma::mat & data, double phi) {
   return rotZ * data;
 }
 int main() {
-  HMM hmm, hmm2, hmm3, hmm4, hmm5;
+  //HMM hmm, hmm2, hmm3, hmm4, hmm5;
 
+  //define the number of clusters to be defined in kmeans
+  unsigned int numClusters = 3;
+  KMeansFunctor kmeansFunctor(numClusters);
+
+  //define min and max values for the number of Gaussian Models that should be used when creating a GMM
   unsigned int kmin = 1;
   unsigned int kmax = 1;
-  unsigned int clusternumber = 3;
-  double eps = 1E-4;
-  arma::mat data = createMatrix("data/2HDZ.pdb");
-  arma::mat data2 = createMatrix("data/3F27.pdb");
-  //arma::mat data3 = data2;
-  //data3.swap_cols(0,1);
-  arma::mat data3 = arma::shuffle(data2, 1);
-  arma::mat data4 = rotY(rotX(data2, 0.7 * M_PI), 0.2 * M_PI);
-  auto labels = kmeans(data, clusternumber, 100, 0);
-  auto labels2 = kmeans(data2, clusternumber, 100, 0);
-  auto labels3 = kmeans(data3, clusternumber, 100, 0);
-  auto labels4 = kmeans(data4, clusternumber, 100, 0);
-  hmm.setEps(eps);
-  hmm2.setEps(eps);
-  hmm3.setEps(eps);
-  hmm4.setEps(eps);
+  GMMCreator creator(kmin, kmax);
+  
+  
 
-  hmm.createGMM(data, labels, kmin, kmax);
-  hmm2.createGMM(data2, labels2, kmin, kmax);
-  hmm3.createGMM(data3, labels3, kmin, kmax);
-  hmm4.createGMM(data4, labels4, kmin, kmax);
+  //load these protein files as a base for our experiments
+  HMM hmm1 = buildHMM(parsePdb("data/2HDZ.pdb"), creator, kmeansFunctor);
+  HMM hmm2 = buildHMM(parsePdb("data/3F27.pdb"), creator, kmeansFunctor);
 
-  hmm.baumWelchCached(data);
-  hmm2.baumWelchCached(data2);
-  hmm3.baumWelchCached(data3);
-  hmm4.baumWelchCached(data4);
-  //hmm.sort(0);
-  //hmm2.sort(0);
-  //hmm3.sort(0);
-  //hmm4.sort(0);
+  //How robust is our algorithm regarding to shuffling? Keep in mind, that HMMs are time-dependent and will change when
+  //you change the order of the input data.
+  std::function<arma::mat (const arma::mat &)> shuffling = 
+  std::bind(arma::shuffle, std::placeholders::_1, 1);
+  HMM hmm3 = buildHMM(parsePdb("data/3F27.pdb"), creator, kmeansFunctor.(shuffling));
+  
+  
+  //Let's try a transformation to our data: Extract it, then rotate it around the Z and X axis according to the values
+  
+  std::function<arma::mat (const arma::mat &)> rot = 
+  std::bind(rotX, std::bind(rotZ, std::placeholders::_1, 0.7 * M_PI), 0.3 * M_PI);
+  //Our kmeansFunctor spawns another version of itself, just now with the added functor to transform the data
+  //The default functor is just a identity transformation
+  HMM hmm4 = buildHMM(parsePdb("data/3F27.pdb"), creator, kmeansFunctor.bind(rot));
 
-  //hmm2.print("hmm2");
-  //std::cout << "SPLIT";
-  //hmm3.print("hmm3");
-  std::cout << "RESULTS" << std::endl;
-  std::cout << HMMComp::symmetric_kld(hmm, hmm) << std::endl;
-  std::cout << HMMComp::symmetric_kld(hmm, hmm2) << std::endl;
+
+ std::cout << "Old algorithm" << std::endl;
+  std::cout << HMMComp::symmetric_kld(hmm1, hmm1) << std::endl;
+  std::cout << HMMComp::symmetric_kld(hmm1, hmm2) << std::endl;
   std::cout << HMMComp::symmetric_kld(hmm3, hmm2) << std::endl;
   std::cout << HMMComp::symmetric_kld(hmm4, hmm2) << std::endl;
+ 
+  std::cout << "New algorithm" << std::endl;
+  std::cout << HMMComp::sMrandomWalk(hmm1, hmm1) << std::endl;
+  //std::cin.get();
+  std::cout << HMMComp::sMrandomWalk(hmm1, hmm2) << std::endl;
+  
+  std::cout << HMMComp::sMrandomWalk(hmm3, hmm2) << std::endl;
+  //std::cin.get();
+  std::cout << HMMComp::sMrandomWalk(hmm2, hmm4) << std::endl;
+ 
 
-  //std::cout << HMMComp::sMrandomWalk(hmm, hmm) << std::endl;
-  //std::cin.get();
-  //std::cout << HMMComp::sMrandomWalk(hmm, hmm2) << std::endl;
-  //std::cin.get();
-  //std::cout << HMMComp::sMrandomWalk(hmm3, hmm2) << std::endl;
-  //std::cin.get();
-  //std::cout << HMMComp::sMrandomWalk(hmm4, hmm2) << std::endl;
-  arma::mat trans = arma::inv(rotY(rotX(arma::eye(3,3), 0.4 * M_PI), 0.1 * M_PI));
+  std::cout << "Transformations were made to the original data - transform back!"
+  //We will now try to reconstruct the linear transformation made before, to enable a better matching
   arma::mat transformation1 = HMMComp::findTransformationMatrix(hmm2, hmm4);
   arma::cube transformation2 = HMMComp::findTransformationMatrix2(hmm2, hmm4);
-  arma::cube transformation3 = HMMComp::findTransformationMatrix2(hmm, hmm2);
-  trans.print("origTrans");
-  transformation1.print("trans1");
-  transformation2.print("trans2");
-
 
   MatrixTransformationFunctor mtf1(transformation1);
   std::cout << HMMComp::sMrandomWalk(hmm2, hmm4, mtf1) << std::endl;
-  for (unsigned int i = 0; i < transformation2.n_slices; ++i) {
-    MatrixTransformationFunctor mtf2(transformation2.slice(i));
-    std::cout << HMMComp::sMrandomWalk(hmm2, hmm4, mtf2) << std::endl;
-  }
-  for (unsigned int i = 0; i < transformation3.n_slices; ++i) {
-    MatrixTransformationFunctor mtf3(transformation3.slice(i));
-    std::cout << HMMComp::sMrandomWalk(hmm, hmm2, mtf3) << std::endl;
-  }
-
-
+  //Just try the most likely coordinate transformation, though there are others.
+  MatrixTransformationFunctor mtf2(transformation2.slice(0));
+  std::cout << HMMComp::sMrandomWalk(hmm2, hmm4, mtf2) << std::endl;
 
 
 
