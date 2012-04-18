@@ -9,7 +9,8 @@
 \begin{document}
 \maketitle
 \begin{abstract}
-Eine Zusammenfassung der implementierten Methoden im Bereich ``Graph-Edit-Distance'', 
+Eine Zusammenfassung der implementierten Methoden 
+im Bereich ``Graph-Edit-Distance'', 
 ihre Anwendung auf generierten sowie echten Daten und 
 ein Ausblick für weitere Entwicklungsmöglichkeiten.
 \end{abstract}
@@ -19,12 +20,13 @@ Aufgabe des Praktikums war, ein oder mehrere Algorithmen aus \cite{comp} zu impl
 einigen Graphtypen zu überprüfen, dabei wurde vor allem die Methode basierend auf \emph{Hidden Markov Models} evaluiert.
 Es hat sich herausgestellt, dass die vorgeschlagene Distanz sich sehr instabil gegenüber kleinen
 Veränderungen an den Daten zeigt, weswegen auf Basis von \cite{unscented} und \cite{randomwalk} eine neue
-Methode \ref{newmethod} entwickelt wurde.
+Methode \ref{newmethod} entwickelt wurde. Die beiden implementierten Algorithmen werden im Folgenden beschrieben und
+evaluiert.
+Die verwendete Programmiersprache ist C++.
 
 
-\section{Liste der Algorithmen}
-\subsection{EDH-Based GED}
-\subsubsection{Beschreibung}
+\section{EDH-Based GED}
+\subsection{Beschreibung}
 \cite[EDH-Based GED]{comp}
 Dieser Algorithmus ist in zwei Phasen aufgeteilt und dient dazu, Graphen anhand ihrer Kanten zu beschreiben.
 \begin{enumerate}
@@ -37,7 +39,7 @@ beschrieben in
 implementiert, da durch die Periodizität der Winkel $(360^{\circ} = 0^{\circ})$ ein sinnvolles, rotations-invariantes
 Matching berechenbar ist.
 \end{enumerate}
-\subsubsection{Implementierung}
+\subsection{Implementierung}
 Um eine möglichst generische Benutzung zu ermöglichen, wurde die Boost Graph Library \cite{boostgraph} verwendet, dabei
 ist ein sehr generischer und bedauerlicherweise auch sehr schwer lesbarer Code entstanden.
 Features:
@@ -48,7 +50,7 @@ berechnen
 \item Es ist möglich, auch andere Methoden zur Berechnung von Winkeln hinzuzufügen (z.B. für Geodaten), wenn man die
 passende Klasse schreibt.
 \end{itemize}
-\subsubsection{Kommentar}
+\subsection{Kommentar}
 Der Algorithmus hat einige gute Eigenschaften, so ist er invariant gegenüber Rotation, wegen der Normalisierung auch
 gegen Streckung, dies könnte theoretisch bei der Analyse von Buchstaben/Schrift von Vorteil sein, dazu ist er zumindest
 in zwei Dimensionen sehr flott: Die Laufzeit beträgt (O(E)), also linear in der Kantenmenge. 
@@ -67,9 +69,12 @@ Ein weiteres Problem ist die Skalierbarkeit in höhere Dimensionen: Schon bei 3 
 Zuordnungen schwer gefunden werden können.
 Aus diesen Gründen wurde das Hauptaugenmerk auf den nächsten Algorithmus gelegt.
 
-\subsection{HMM-Based GED}
-\subsubsection{Beschreibung}
+\section{HMM-Based GED}
 \cite[HMM-Based GED]{comp}
+Auch dies ist ein zweigeteilter Algorithmus, HMM zur Modellierung eines Graphen und Distanzen um diese Modelle
+miteinander zu vergleichen.
+\subsection{HMM}
+\subsubsection{Beschreibung}
 \emph{HMMs} oder genauer \emph{Hidden Markov Models} werden oft in der Sprach- und Bildverarbeitung genutzt, dennoch
 eine kurze Erklärung, für Details ist \cite{rabin} zu empfehlen.
 
@@ -88,7 +93,8 @@ Symbole \emph{Sonne} und \emph{Regen} kennt, und das Wetter in Mannheim grob bes
 jeden State eine \emph{Wahrscheinlichkeitsverteilung} zu finden.
 
 Dies geschieht über \emph{Gaussian Mixture Models}, die eine gewichtete Ansammlung von \emph{Gaussian
-Models}, also Glockenkurven-Verteilungen sind.
+Models}, also Glockenkurven-Verteilungen sind. So wird also jedem \emph{State} genau ein \emph{Gaussian Mixture Model}
+zugewiesen.
 Um vernünftige Startwerte für ein mögliches Modell zu erzeugen, wird gemäß \cite{comp} ein \cite{emgmm}
 \emph{Expectation Maximization}-Algorithmus angewandt, der für eine gegebene Punktmenge das wahrscheinlichste
 \emph{Gaussian Mixture Model} berechnet - dabei ist zu bemerken, dass das perfekte Modell nicht gefunden werden kann und
@@ -99,10 +105,10 @@ Nach Erzeugung von HMMs für zwei Graphen gibt es verschiedene \cite{randomwalk}
 die später vorgestellt werden.
 
 
-Fragen:
+\paragraph{Fragen:}
 \begin{itemize}
 \item \textbf{Welches sind die States in einem Graphen?} Die Autoren in \cite{comp} schlagen vor, einen \emph{KMeans}
-anzuwenden, um dann jedem einzelnen Cluster einen State zuzuordnen. Dies ist ein sinnvoller Ansatz, um die \emph{GMMs}
+anzuwenden, um dann jedem einzelnen Cluster einen State \label{states} zuzuordnen. Dies ist ein sinnvoller Ansatz, um die \emph{GMMs}
 lokal einzuschränken.
 \item \textbf{Inwiefern spielen Graphkanten eine Rolle?} Die einzige Möglichkeit, diese mit einzubeziehen, ist während
 des \emph{Clustering}; so kann z.B. der \cite{chinese} \emph{Chinese Whisper}-Algorithmus verwendet werden, der
@@ -114,13 +120,105 @@ bessere Distanzmaße die stabiler gegenüber solchen Änderungen sind.
 \end{itemize}
 
 \subsubsection{Implementierung}
+Da es sich vornehmlich um Matrix-Operationen handelt, wurde \emph{Armadillo} \cite{armadillo} eingesetzt, eine
+hinreichend schnelle Bibliothek, die zusammen mit \emph{Atlas} oder \emph{Lapack} die nötige Lineare Algebra
+bereitstellt.
+Daten-Punkte werden hierbei als Spalten von Armadillo-Matrizen übergeben, für \emph{pdb}-Dateien ist unter den \emph{examples}
+ein Parser beigelegt, der die Atome aus ebendiesen extrahiert und passende Matrizen erzeugt.
+
+Aufgrund mangelnder Open-Source-Implementierungen von \emph{HMMs}, die auf \emph{GMMs} basieren, wurden diese im Zuge
+des Praktikums in Anlehnung an \cite{emgmm} und \cite{rabin} geschrieben und über \emph{Doxygen} dokumentiert.
+
+\paragraph{Features:}
+\begin{itemize}
+\item \emph{Geschwindigkeit:} Im Laufe der Entwicklung haben sich einige Stellen zur Optimierung aufgetan, sodass nun
+für die Parametersuche eine HMM über den \emph{Baum-Welch}-Algorithmus zusätzlich eine Methode angeboten wird, die durch
+Caching einiger Wahrscheinlichkeiten sowie günstiger Matrix-Multiplikationen sich 5-10x schneller als die naive, wenn auch
+speichergünstigere Variante zeigt.
+Die Laufzeitkomplexität ist, aufgrund eines sehr schnellen Konvergenzverhaltens der iterativen Methoden (~10-20
+Schritte) als linear in der Anzahl der Datenpunkte zu betrachten.
+\item \emph{Kompatibilität:} Er werden Objekte im $\mathbb{R}^n$ unterstützt, da die unterliegenden GMMs nur hierfür
+sinnvoll definiert sind. Es wäre denkbar, für diskrete Symbole (z.B. Angebot eines Online-Versenders) eine passende
+Template-Version anzubieten, dies ist aber nicht Inhalt dieser Arbeit.
+\item \emph{Numerische Stabilität:} Wie in \cite{rabin} beschrieben, wurden in dieser Implementierung normierte
+Wahrscheinlichkeiten verwendet, da ansonsten die Multiplikation von kleinen Zahlen zur völligen Auslöschung führen
+würde. Dabei ist zu beachten, dass im ursprünglichen Werk Fehler enthalten waren welche in \cite{erratumr} behoben wurden.
+\end{itemize}
 
 
+\subsection{Distanzen und Ähnlichkeiten}
 
+Um eine Angabe über die Ähnlichkeit zweier berechneter HMMs zu machen, wird ein Maß verwendet, um die enthaltenen
+Wahrscheinlichkeitsverteilungen der beiden miteinander zu vergleichen - wenn sich diese ähneln, so auch die damit
+beschriebenen Daten.
+\subsubsection{KL-Divergenz}
+Ein häufig verwendetes Maß für zwei Verteilungen $P, Q$ ist die \emph{Kullback-Leibler}-Divergenz: 
+$$KL(P,Q) = \int \! P(x) \log {P(x) \over Q(x)} \, \mathrm{d} x$$
+Diese hat jedoch im konkreten Fall einige Probleme,
+da sie über ein Integral definiert ist, welches für kompliziertere Verteilungen nur näherungsweise berechnet werden
+kann.
+Hier ist zu bemerken, dass bei der Modellierung eines Datensatzes aufgrund der vorherigen Einteilung in wenig-überlappende Cluster (mit KMeans z.B.) 
+\emph{GMMs} entstehen, die sich stark voneinander unterscheiden. Ein Datenpunkt kann somit oftmals nur von einer
+einzigen GMM (und damit einem \emph{State}, vgl. \ref{states}) erzeugt werden, was bei der Distanzberechnung zu
+Problemen führt.
 
+\emph{Bemerkung:} Die KLD zwischen zwei unabhängigen Verteilungen ist quasi unendlich aufgrund des $\log$, wenn ${P(x)
+\over Q(x)} \approx 0 $
 
+\paragraph {KLD-Berechnung nach \cite{comp}}
+Die dort vorgeschlagene Näherung hat genau das Problem, dass nicht alle States $(S_i)_i$, $(T_j)_j$ zweier HMMs miteinander
+verglichen werden, sondern nur $S_1$ mit $T_1$, $S_2$ mit $T_2$ etc., so kann es bei einer ungünstigen Nummerierung dazu
+kommen, dass die resultierende Distanz unendlich ist - es ist eher erforderlich, die jeweils nächstliegenden States
+einander zuzuordnen. 
+Weiterhin zeigt sich der Algorithmus absolut instabil gegenüber kleinen Änderungen an der Inputreihenfolge, was ihn z.B.
+für Proteinanalyse vollkommen untauglich macht. 
 
+Überhaupt kriegt er Schwierigkeiten, wenn ``zu viele'' Daten vorhanden
+sind, so dass die enstehenden Verteilungen zu einseitig sind (z.B. wenn die Wahrscheinlichkeit, im State 4 zu starten
+bei $100\%$ liegt).
+
+Es hat sich herausgestellt, dass der umgekehrte Ansatz, die Ähnlichkeit statt der Distanz/Divergenz
+zu berechnen, vielversprechender ist, wie sich im nächsten Algorithmus zeigt.
+
+\paragraph {RandomWalk \cite{randomwalk}}
 \label{newmethod}
+Dieser Ansatz führt prinzipiell sehr ähnliche Berechnungen durch - da aber ein entgegengesetztes Maß berechnet werden
+soll (also Ähnlichkeit statt Distanz), kann $e^{-d}$ für eine Distanz $d$ berechnet werden, um zusammen
+mit der KLD-Näherung in \cite{unscented} Werte zu erhalten, die zwischen $0$ und $1$ liegen.
+
+Somit kann man für die States $(S_i)_i$, $(T_j)_j$  eine Matrix mit $i * j$ Einträgen erstellen, die die jeweiligen
+Ähnlichkeiten beschreibt.
+
+Das resultierende Ähnlichkeitsmaß zweier HMMs hat folgende Eigenschaften:
+\begin{itemize}
+\item \emph{Wertebereich:} Ursprünglich zwischen 0 und 1, um aber sinnvollere Ergebnisse zu erhalten fließen im Gegensatz
+zu \cite{randomwalk} nun die absoluten Ähnlichkeiten zwischen den States mit ein, was bei extrem ähnlichen HMMs (also
+z.B. wenn sie übereinstimmen) zu geringfügig höheren Ergebnissen wie 1.3 führen können.
+\item \emph{Geschwindigkeit:} Linear bezüglich der Anzahl an verwendeten Gaussian Models, also unerheblich im Vergleich
+zur HMM-Berechnung
+\item \emph{Interpretierbarkeit:} Aus den Zwischenergebnissen kann man z.B. über die \emph{Ungarische Methode} ein
+bestmögliches Mapping zwischen den States erhalten, dies wurde aus Zeitgründen jedoch nicht mehr implementiert.
+\item \emph{Invarianz:} Basierend auf der Idee von stationären Wahrscheinlichkeiten in \cite{randomwalk}
+(diese geben an, welche States eher besucht werden) ist es möglich und sinnvoll, etwaige Veränderungen der Ausgangsdaten
+zu \emph{reverse engineeren}. So ist eine Methode enthalten, die mit Hilfe von Clustermittelpunkten lineare
+Transformationen durchführt, um zwei HMMs soweit wie möglich aneinander anzupassen.
+Dadurch wird der Algorithmus stabil (also $100\%$ Übereinstimmung zwischen den veränderten Daten) gegenüber Spiegelung, Streckung und Drehung, jedoch nicht Verschiebungen - 
+Daten sollten deshalb vor der HMM-Berechnung \emph{zentriert} werden.
+\item \emph{Abhängigkeit von der Inputreihenfolge:} Diese ist immernoch gegeben, jedoch nicht so stark ausgeprägt wie
+beim ursprünglichen Ansatz, sodass z.B. zwischen einem Protein und dessen gemischten Äquivalent noch eine wesentlich
+höhere Ähnlichkeit besteht als einem anderem Protein.
+
+\end{itemize}
+
+\subsection{Kommentar}
+Am Ende ist ein schneller, stabiler, interpretierbarer Algorithmus entstanden, der so natürlich auch für ein
+Klassifizierungen verwendet werden kann.
+Wegen dem Einsatz verschiedener Wahrscheinlichkeitsverteilungen und statistischen Vorgängen ist er für kleine Graphen
+(also in der Größenordnung bis ~100 Knoten) ungeeignet, dafür skaliert er aber auch noch gut mit größeren Mengen. 
+Weitere Anwendungsideen wären Text- und Sprachanalysen, wo HMMs häufig verwendet werden, dafür müssten allerdings noch
+die unterliegenden GMMs angepasst werden.
+
+
 
 
 
@@ -138,7 +236,8 @@ bessere Distanzmaße die stabiler gegenüber solchen Änderungen sind.
 \bibitem{boostgraph} The Boost Graph Library. Jeremy Siek, Lie-Quan Lee, Andrew Lumsdaine.
 \bibitem{chinese} Chinese Whispers - an Efficient Graph Clustering Algorithm and its Application to Natural Language
 Processing Problems. Christian Biemann 
-
+\bibitem{erratumr} An Erratum for ``A Tutorial on Hidden Markov Models and Selected Applications in Speech
+Recognition''. Ali Rahimi 
 \end{thebibliography}
 
 
