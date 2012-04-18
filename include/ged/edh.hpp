@@ -14,9 +14,7 @@
 #include <boost/foreach.hpp>
 
 #include <boost/graph/adjacency_list.hpp>
-//#include <boost/graph/filtered_graph.hpp>
 #include "boost/graph/graph_utility.hpp"
-//#include <boost/graph/copy.hpp>
 #include <boost/graph/graph_traits.hpp>
 #include <boost/property_map/property_map.hpp>
 #include <boost/mpl/for_each.hpp>
@@ -32,20 +30,37 @@
 using std::placeholders::_1;
 
 
-
+/** 
+ *  \brief This functor is used to transform a single edge into its angle/length description.
+ *
+ *  It features heavily templatized functions and thus can deal with any kind of Boost Graph, as long as
+ *  its vertices have a location_ member.
+ *
+ *
+ * */
 struct
 EuclideanVSpaceFunctor {
-
+  /** 
+   *  \brief This is a helper struct, to get some necessary typedefs for the results
+   *  \tparam Array This is the type of a vector in the cartesian vector space
+   * */
   template<typename Array>
   struct ArrayTypeHelper {
     typedef typename Array::value_type value_type;
     static constexpr size_t N = std::tuple_size<Array>::value;
+    /** LengthType*/
     typedef value_type WeightType;
+    /** AngleType*/
     typedef std::array<value_type, N-1> MassType;
+    /** Instead of describing a vector in its cartesian coordinates, it is described in length and angles*/
     typedef std::pair<WeightType, MassType> ResultType;
   };
   //saving the angles to indices 1 -- N-1
   //0 holds the length
+  //
+  /** 
+   *  Create a tuple containing angles and length from a given edge.
+   * */
   template <typename EdgeDescriptor, typename Graph>
     auto
     operator() (EdgeDescriptor && e, const Graph & g) const ->
@@ -75,6 +90,8 @@ EuclideanVSpaceFunctor {
 
 
 
+
+/** Create the bins of the histogram by iterating over the objects*/
 //TagType consists of length, angle0, angle1, ...angleN-1
 template <typename TagType, size_t M = 0, size_t N = std::tuple_size<TagType>::value>
 class CalculateBins {
@@ -140,9 +157,12 @@ class CalculateBins {
 
 
 };
+
+/**
+ * A functor to create a dense Histogram.
+ * */
 struct
 CreateDenseHistogram {
-  //TODO: crashes in higher dimensions!?
   template <typename ForwardIterator, typename B>
     auto
     operator()(ForwardIterator first, ForwardIterator last, const B & binLimits, bool normalize = true) -> 
@@ -203,7 +223,10 @@ CreateDenseHistogram {
     }
 };
 
-
+/** 
+ *  A Functor to measure the Earth Mover's Distance between two Histograms
+ *
+ * */
 template <typename EdgeExtractor, typename Graph>
 struct
 EmdMod {
@@ -296,6 +319,7 @@ EmdMod {
     }
 };
 
+/** A Generic wrapper to calculate the Earth Mover's Distance with different algorithms*/
 
 struct EMD {
 

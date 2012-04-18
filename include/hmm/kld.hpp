@@ -37,7 +37,7 @@ struct HMMComp{
    /** 
     * Assuming that there exists a linear transformation between the underlying data of hmm1 and hmm2,
     * try to reverse-engineer it.
-    * This method picks the most probable states (according to their stationary probability \see findStationary),
+    * This method picks the most probable states (according to their stationary probability \ref findStationary),
     * and calculates the coordinate transformation necessary to align their most important sigmas.
     * This is likely a very crude guess to the transformation and thus not recommended.
     *
@@ -74,7 +74,7 @@ struct HMMComp{
    /** 
     * Assuming that there exists a linear transformation between the underlying data of hmm1 and hmm2,
     * try to reverse-engineer it.
-    * This method picks the center of masses of the most probable states (\see findStationary) for both HMMs,
+    * This method picks the center of masses of the most probable states (\ref findStationary) for both HMMs,
     * returning a Transformation Matrix for every match-permutation. For a 3d-problem, this for example requires
     * 3 points for both HMMs, resulting in 6 different matches.
     * The method works well in reversing rotations, mirroring and similar operations.
@@ -182,16 +182,18 @@ struct HMMComp{
   * Based on an algorithm described in 
   * \see "An Efficient Image Similarity Measure based on Approximations of KL-Divergence Between Two Gaussian Mixtures",
   * by Goldberger, Gordon, Greenspan
+  * 
   * While the algorithm normally calculates the Kullback-Leibler distance KL(f||g) which features logarithms, 
-  * we aren't interested in the distance itself but rather in exp(-KL(f||g)), which enables slight changes to
+  * we aren't interested in the distance itself but rather in exp(-K * KL(f||g)), which enables slight changes to
   * their original algorithm to prevent infinite distances.
+  * \param[in] K A constant to enable the scaling of the similarity measure.
   * \return The similarity between two GMMs, in [0,1]
   */
 
 
  static 
    double
-   expUnscentedTransform(const GMM & gmm1, const GMM & gmm2, double K = 0.5) {
+   expUnscentedTransform(const GMM & gmm1, const GMM & gmm2, double K) {
      if (gmm1.getD() != gmm2.getD()) throw std::runtime_error("wrong dimensions in the GMMs");
      unsigned int d = gmm1.getD();
      arma::vec weights = gmm1.getWeights();
@@ -255,13 +257,22 @@ struct HMMComp{
    *   Slight changes were made to create more representative results, as the quality of the
    *   matches between states was also taken into account instead of just the sparsity of the
    *   matching matrix.
+   *   \param[in] func A functor to be applied to hmm2's Gaussian Mixture Models, by default it's the IdentityFunctor which will leave it untouched
+   *   \param[in] distanceSelect A selector to use a different distance Measure, 0 chooses the unscented Transform, 1
+   *   the default KLD distance between GMM
+   *   \param[in] K scaling constant, \see \ref expUnscentedTransform
+   *   \return A value between 0 and ~1 (can be slightly higher), which represents the similarity of the two input HMMs.
+   *
+   *   \note While a similarity of over 1 is incorrect from the mathematical point of view, allowing it was a necessary
+   *   sacrifice to be made to enable a larger spread of possible values for the measure.
+   *
    *
    * */
 
  template <typename TransformationFunctor = IdentityFunctor>
    static
    double
-   sMrandomWalk(const HMM & hmm1, const HMM & hmm2, TransformationFunctor func = TransformationFunctor(), int distanceSelect = 0){
+   sMrandomWalk(const HMM & hmm1, const HMM & hmm2, TransformationFunctor func = TransformationFunctor(), int distanceSelect = 0, double K = 0.5){
      //calculate stationary probabilities for the states
      arma::rowvec pi1 = findStationary(hmm1.A_);
      arma::rowvec pi2 = findStationary(hmm2.A_);
@@ -282,7 +293,7 @@ struct HMMComp{
          switch(distanceSelect) {
 
            case 0:
-             Sij(i,j) = expUnscentedTransform(hmm1.BModels_[i], gmm2);
+             Sij(i,j) = expUnscentedTransform(hmm1.BModels_[i], gmm2, K);
              break;
            case 1:
              Sij(i,j) = std::exp(-gmmDistance(hmm1.BModels_[i], gmm2));
@@ -295,8 +306,8 @@ struct HMMComp{
      if (ES != 0.) {
        Qij /= ES;
      }
-     Sij.print("Sij");
-     Qij.print("Qij");
+     //Sij.print("Sij");
+     //Qij.print("Qij");
      arma::vec Hi = arma::zeros(hmm1.N_, 1);
      arma::vec Hj = arma::zeros(hmm2.N_, 1);
 
@@ -309,8 +320,8 @@ struct HMMComp{
        Hj(j) = normalizedGiniIndex(Qij.col(j));
        //Hj(j) = hoyerMeasure(Qij.col(j));
      }
-     Hi.print("Hi");
-     Hj.print("Hj");
+     //Hi.print("Hi");
+     //Hj.print("Hj");
 
      double similarity = 0.5 * (1./double(hmm1.N_) * arma::accu(Hi) + 1./double(hmm2.N_) * arma::accu(Hj));;
 
@@ -318,12 +329,11 @@ struct HMMComp{
 
    }
 
- /*
-    double
-    pmfDistance(const arma::rowvec & v1, const arma::rowvec & v2) {
-    return pmfDistance (v1.t(), v2.t());
-    }
-    */
+
+/** 
+ *  \brief KLD distance measure for two discrete probability mass functions
+ *
+ * */
  static
    double
    pmfDistance(const arma::mat & v1, const arma::mat & v2) {
@@ -337,19 +347,15 @@ struct HMMComp{
        distance += v1(i) * (std::log(v1(i)) - std::log(v2(i)));
      }
 
-     //if (distance != distance) {
-
-     //v1.print("v1");
-     //v2.print("v2");
-     //std::cout << "distance: " << distance << std::endl;
-     //throw std::runtime_error("NaN detected");
-     // }
-
 
      return distance;
 
    }
 
+/** 
+ *  \brief Distance between two Gaussian Models, according to the closed form formula,
+ *  \see Penny & Roberts, PARG-00-12, (2000), pp. 18
+ * */
  static
    double gmDistance(const GM & gm1, const GM & gm2){
      const arma::mat & C = gm1.getSigma();
@@ -370,6 +376,13 @@ struct HMMComp{
      return distance;
 
    }
+
+  /** 
+   *  One of the possible KL-Distances for Gaussian Mixture Models,
+   *  it tries to match the most similar underlying GMs to each other, according to
+   *  \see "A Comparative Study of Three Graph Edit Distance Algorithms" by Gao, Xiao, Tao, Li
+   *  \note The resulting distance is not necessarily finite.
+   * */
  static
    double gmmDistance(const GMM & gmm1, const GMM & gmm2) {
      const arma::vec & w = gmm1.getWeights();
@@ -402,12 +415,35 @@ struct HMMComp{
    }
 
 
+/** 
+ *
+ *  This algorithm returns an upper bound of the Kullback-Leibler Distance between two Hidden Markov Models,
+ *  as there exists no closed formula.
+ *  Compared to the Monte-Carlo method, it is very fast and can be used for ranking algorithms.
+ *
+ *  \see "A Comparative Study of Three Graph Edit Distance Algorithms" by Gao, Xiao, Tao, Li
+ *
+ * \note Limitations: Only defined if both HMMs have the same number of states
+ * \note Can return +infinity
+ * \param[in] piSelector The original algorithm uses the starting probabilities of the HMMs,
+ * for untimed events this can lead to very high bounds (+infinity), so by default the stationary probabilities
+ * of the states are used. 0 uses stationary probabilities, 1 the starting pi.
+ *
+ * */
  double 
-   static kld(const HMM & hmm1, const HMM & hmm2) {
+   static kld(const HMM & hmm1, const HMM & hmm2, int piSelector = 0) {
 
-     arma::rowvec pi1 = findStationary(hmm1.A_);
-     arma::rowvec pi2 = findStationary(hmm2.A_);
-
+     arma::rowvec pi1, pi2;
+     switch(piSelector) {
+       case(0):
+         pi1 = findStationary(hmm1.A_);
+         pi2 = findStationary(hmm2.A_);
+         break;
+       case(1):
+         pi1 = hmm1.pi_;
+         pi2 = hmm2.pi_;
+         break;
+     }
      //double piDistance = pmfDistance(hmm1.pi_, hmm2.pi_);
      double piDistance = pmfDistance(pi1, pi2);
      if (hmm1.N_ != hmm2.N_) throw std::logic_error("different number of states in the hmms");
@@ -439,17 +475,14 @@ struct HMMComp{
      for (unsigned int i = 0; i < N-1; ++i) {
        f += APow.slice(i) * d + APow.slice(N-1) * e;  
      }
-     /* 
-        if (!f.is_finite())  {
-        d.print("d");
-        e.print("e");
-        f.print("f");
-        throw std::runtime_error("NaN detected");
-        }*/
      return piDistance + arma::as_scalar(pi1 * f);
      //return piDistance + arma::as_scalar(hmm1.pi_ * f);
    }
 
+  /** 
+   *  The original kld is not symmetric, so KLD(f||g) != KLD(g||f), for a different ranking the symmetric version can be
+   *  used.
+   * */
  static double
    symmetric_kld(const HMM & hmm1, const HMM & hmm2) {
      return kld(hmm1, hmm2) + kld(hmm2, hmm1);

@@ -383,18 +383,29 @@ class GMM {
 };
 
 /** 
+ *  \class IdentityFunctor
+ *  \brief A simple functor to pass a gmm untouched.
+ *
+ * */
+struct IdentityFunctor {
+  GMM operator()(const GMM & gmm) const {
+    return gmm;
+  }
+};
+
+/** 
  *  \class MatrixTransformationFunctor
  *  \brief A functor to apply a transformation Matrix to a Gaussian Mixture Model
  *
  * */
 struct MatrixTransformationFunctor {
+  /** Transformation matrix to be applied*/
   const arma::mat transMatrix_;
   MatrixTransformationFunctor(const arma::mat & transMatrix):transMatrix_(transMatrix) {}
   GM
     transformGM(const GM & gm) const {
 
       GM gm2 = gm;
-      //gm2.setSigma(transMatrix_ * gm2.getSigma() * arma::inv(transMatrix_));
       gm2.setSigma(transMatrix_ * gm2.getSigma() * transMatrix_.t());
       gm2.setMu(transMatrix_ * gm2.getMu());
 

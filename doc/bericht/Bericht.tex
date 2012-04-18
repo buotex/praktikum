@@ -1,0 +1,146 @@
+\documentclass{DEarticle}
+\usepackage{lmodern}
+\usepackage{cite}
+\usepackage{hyperref}
+\usepackage{amssymb}
+\title{Praktikumsbericht}
+\author{Buote Xu}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+Eine Zusammenfassung der implementierten Methoden im Bereich ``Graph-Edit-Distance'', 
+ihre Anwendung auf generierten sowie echten Daten und 
+ein Ausblick für weitere Entwicklungsmöglichkeiten.
+\end{abstract}
+
+\section{Einführung}
+Aufgabe des Praktikums war, ein oder mehrere Algorithmen aus \cite{comp} zu implementieren, um ihre Tauglichkeit auf
+einigen Graphtypen zu überprüfen, dabei wurde vor allem die Methode basierend auf \emph{Hidden Markov Models} evaluiert.
+Es hat sich herausgestellt, dass die vorgeschlagene Distanz sich sehr instabil gegenüber kleinen
+Veränderungen an den Daten zeigt, weswegen auf Basis von \cite{unscented} und \cite{randomwalk} eine neue
+Methode \ref{newmethod} entwickelt wurde.
+
+
+\section{Liste der Algorithmen}
+\subsection{EDH-Based GED}
+\subsubsection{Beschreibung}
+\cite[EDH-Based GED]{comp}
+Dieser Algorithmus ist in zwei Phasen aufgeteilt und dient dazu, Graphen anhand ihrer Kanten zu beschreiben.
+\begin{enumerate}
+\item Erstelle ein Histogramm, um die verschiedenen Kanten eines Graphen zu kategorisieren. Die von den Autoren
+verwendete Methode nutzt hierfür die bekannten kartesischen Raumwinkel. Dabei ist es prinzipiell egal (und so auch
+implementiert), ob der Winkel ein Label der Kante an sich ist oder über die Position ihrer Knoten bestimmt werden kann.
+\item Finde die günstigste Zuordnung zweier Histogramme zueinander; hierfür wurde nur der zweidimensionale Fall,
+beschrieben in
+\cite[Appendix A]{sift}
+implementiert, da durch die Periodizität der Winkel $(360^{\circ} = 0^{\circ})$ ein sinnvolles, rotations-invariantes
+Matching berechenbar ist.
+\end{enumerate}
+\subsubsection{Implementierung}
+Um eine möglichst generische Benutzung zu ermöglichen, wurde die Boost Graph Library \cite{boostgraph} verwendet, dabei
+ist ein sehr generischer und bedauerlicherweise auch sehr schwer lesbarer Code entstanden.
+Features:
+\begin{itemize}
+\item Unterstützung für beliebige Boost-Graphs, wenn für die Knoten jeweils eine ``location'' definiert wird.
+\item In der Lage, die Ähnlichkeit/Distanz zwischen zwei eindimensionalen Histogrammen (also zweidimensionalen Daten) zu
+berechnen
+\item Es ist möglich, auch andere Methoden zur Berechnung von Winkeln hinzuzufügen (z.B. für Geodaten), wenn man die
+passende Klasse schreibt.
+\end{itemize}
+\subsubsection{Kommentar}
+Der Algorithmus hat einige gute Eigenschaften, so ist er invariant gegenüber Rotation, wegen der Normalisierung auch
+gegen Streckung, dies könnte theoretisch bei der Analyse von Buchstaben/Schrift von Vorteil sein, dazu ist er zumindest
+in zwei Dimensionen sehr flott: Die Laufzeit beträgt (O(E)), also linear in der Kantenmenge. 
+
+Eine Spiegelung der
+Daten hingegen führt dazu, dass sich das Histogram umdreht - genau hier existiert ein Problem des Ansatzes; ein matching
+zwischen zwei Histogrammen wie vorgeschlagen hat wenige Freiheiten.
+
+So ist es nur möglich, Winkel linear einander zuzuordnen - wenn also z.B. die Winkel $(0_A^{\circ} = 30_B^{\circ})$ der
+Graphen $A$ und $B$ zueinander passen, so wird damit automatisch auch festgelegt, dass $(40_A^{\circ} = 70_B^{\circ})$
+gilt - die Histogramme werden also quasi bestmöglich zueinander \emph{verschoben}, was bei der genannten Spiegelung oder
+auch einer Zerrung eben nicht erfolgreich sein kann.
+
+Ein weiteres Problem ist die Skalierbarkeit in höhere Dimensionen: Schon bei 3 Dimensionen hat man es mit
+2-dimensionalen Histogrammen zu tun, die größtenteils leer sind (je nach Auflösung der Histogramme), so dass sinnvolle
+Zuordnungen schwer gefunden werden können.
+Aus diesen Gründen wurde das Hauptaugenmerk auf den nächsten Algorithmus gelegt.
+
+\subsection{HMM-Based GED}
+\subsubsection{Beschreibung}
+\cite[HMM-Based GED]{comp}
+\emph{HMMs} oder genauer \emph{Hidden Markov Models} werden oft in der Sprach- und Bildverarbeitung genutzt, dennoch
+eine kurze Erklärung, für Details ist \cite{rabin} zu empfehlen.
+
+Für einen Informatiker ist die naheliegendste Struktur wohl eine \emph{Finite State Machine}, die in jedem
+\emph{Zeit-}schritt mit einer gewissen Wahrscheinlichkeit ein Symbol ausgibt. 
+
+Es ist möglich, damit mehrere Problemstellungen zu bewältigen; in dem vorliegenden Fall ist das Ziel folgendes: 
+
+Angenommen, ein \emph{Hidden Markov Model} hat eine Folge von Symbolen (also z.B. Atome in einem Protein, oder
+abstrakter, Punkte im $\mathbb{R}^3$ ausgegeben - welches waren die wahrscheinlichsten Parameter? (Mit welchem
+\emph{State} wurde begonnen, wie sind die Transitionswahrscheinlichkeiten, mit welcher Wahrscheinlichkeit gibt
+\emph{State} $3$ das Symbol $x$ aus?
+
+Da es im $\mathbb{R}^3$ eine unendliche Anzahl an möglichen Symbolen gibt (vgl. hierzu ein Model, das nur die
+Symbole \emph{Sonne} und \emph{Regen} kennt, und das Wetter in Mannheim grob beschreiben soll), ist es notwendig für
+jeden State eine \emph{Wahrscheinlichkeitsverteilung} zu finden.
+
+Dies geschieht über \emph{Gaussian Mixture Models}, die eine gewichtete Ansammlung von \emph{Gaussian
+Models}, also Glockenkurven-Verteilungen sind.
+Um vernünftige Startwerte für ein mögliches Modell zu erzeugen, wird gemäß \cite{comp} ein \cite{emgmm}
+\emph{Expectation Maximization}-Algorithmus angewandt, der für eine gegebene Punktmenge das wahrscheinlichste
+\emph{Gaussian Mixture Model} berechnet - dabei ist zu bemerken, dass das perfekte Modell nicht gefunden werden kann und
+somit mögliche Lösungen iterativ erzeugt werden bis sie sich nicht mehr merklich verbessern.
+
+
+Nach Erzeugung von HMMs für zwei Graphen gibt es verschiedene \cite{randomwalk}, \cite{comp} Ähnlichkeits-/Distanzmaße,
+die später vorgestellt werden.
+
+
+Fragen:
+\begin{itemize}
+\item \textbf{Welches sind die States in einem Graphen?} Die Autoren in \cite{comp} schlagen vor, einen \emph{KMeans}
+anzuwenden, um dann jedem einzelnen Cluster einen State zuzuordnen. Dies ist ein sinnvoller Ansatz, um die \emph{GMMs}
+lokal einzuschränken.
+\item \textbf{Inwiefern spielen Graphkanten eine Rolle?} Die einzige Möglichkeit, diese mit einzubeziehen, ist während
+des \emph{Clustering}; so kann z.B. der \cite{chinese} \emph{Chinese Whisper}-Algorithmus verwendet werden, der
+vor allem auf dicht besetzten Graphen zu sinnvollen Ergebnissen führt.
+\item \textbf{Wie ist die zeitliche Ordnung von stationären, also z.B. Proteindaten?} Hier kommen wir zu einem Problem des ursprünglichen
+Algorithmus in \cite{comp}: Durch Vertauschung der Reihenfolge von wenigen Punkten erhält man unendliche Distanzen, da
+\emph{HMMs} primär für die Beschreibung von zeitabhängigen Daten geeignet sind, es gibt aber auch für stationäre Daten
+bessere Distanzmaße die stabiler gegenüber solchen Änderungen sind.
+\end{itemize}
+
+\subsubsection{Implementierung}
+
+
+
+
+
+
+\label{newmethod}
+
+
+
+
+
+\begin{thebibliography}{1}
+\bibitem{comp} X.-B. Gao, B. Xiao et. al. A Comparative Study of Three Graph Edit Distance Algorithms. Foundations on Computational Intelligence (Edited by A. Abraham, Aboul-Ella Hassanien et al.), ISBN: 978-3-642-01535-9, Springer, Vol. 5, SCI 205, pp. 223-242, 2009. 
+\bibitem{rabin} L. R. Rabiner (1989). "A Tutorial on Hidden Markov Models and Selected Applications in Speech Recognition," Proceedings of the IEEE, vol 77, no 2, 257--287.
+\bibitem{unscented} Goldberger, Gordon, Greenspan. An Efficient Image Similarity Measure Based on Approximations of KL-Divergence Between Two Gaussian Mixtures, Computer Vision, 2003. Proceedings. Ninth IEEE International Conference on In Computer Vision, 2003. Proceedings. Ninth IEEE International Conference on (2003), pp. 487-493 vol.1, doi:10.1109/ICCV.2003.1238387 
+\bibitem{randomwalk} A Novel Low-Complexity HMM Similarity Measure. Sayed Mohammad Ebrahim Sahraeian, Student Member, IEEE, and Byung-Jun Yoon, Member, IEEE
+\bibitem{emgmm} Unsupersived Learning of Finite Mixture Models. Mario A.T. Figueiredo and Anil K. Jain
+\bibitem{armadillo} Conrad Sanderson. Armadillo: An Open Source C++ Linear Algebra Library for Fast Prototyping and Computationally Intensive Experiments. Technical Report, NICTA, 2010.
+\bibitem{esbtl} Loriot S, Cazals F, Bernauer J: ESBTL: efficient PDB parser and data structure for the structural and geometric analysis of biological macromolecules. Bioinformatics 2010, 26(8):1127-1128. PMID: 20185407
+\bibitem{sift} A Linear Time Histogram Metric for Improved SIFT Matching. Ofir Pele and Michael Werman. 
+\bibitem{boostgraph} The Boost Graph Library. Jeremy Siek, Lie-Quan Lee, Andrew Lumsdaine.
+\bibitem{chinese} Chinese Whispers - an Efficient Graph Clustering Algorithm and its Application to Natural Language
+Processing Problems. Christian Biemann 
+
+\end{thebibliography}
+
+
+
+\end{document}
