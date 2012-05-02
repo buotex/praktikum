@@ -1,4 +1,4 @@
-#include <hmm/gmm.hpp>
+#include <gmm.hpp>
 #include <armadillo>
 #include <assert.h>
 
@@ -40,12 +40,12 @@ class HMM {
   arma::rowvec pi_; 
   /** Loglikelihood of the calculated model for the given data*/
   double pprob_;
-
+public:
   HMM() {
   }
-  HMM(GM_c* GMs, int * ids, double * weights, double * transitions, double * inits);
+HMM(GM_c* gms, int * ids, double * weights, int gm_n, double * transitions, double * inits, int state_n);
 
-
+private:
   std::vector<arma::mat> gammaLts_;
   arma::mat alpha_;
   arma::mat beta_;

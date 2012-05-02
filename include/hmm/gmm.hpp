@@ -30,7 +30,8 @@ class GM {
 
   /**The coeff is cached and recalculated on a sigma change */ 
   double coeff_; 
-  
+ 
+
   public:
   unsigned int const & getD() const {
     return D_;
@@ -84,6 +85,18 @@ class GM {
   GM(const arma::vec & mu, const arma::mat & sigma) {
     setMu(mu);
     setSigma(sigma);
+  }
+  GM(const GM_c & gmc) {
+     arma::mat sigma = arma::mat(3,3);
+     arma::vec mu = arma::vec((double *)&gmc.mean, 3);
+     sigma(0,0) = gmc.sigma[0];
+     sigma(0,1) = gmc.sigma[1];
+     sigma(0,2) = gmc.sigma[2];
+     sigma(1,1) = gmc.sigma[3];
+     sigma(1,2) = gmc.sigma[4];
+     setMu(mu);
+     setSigma(arma::symmatu(sigma));
+  
   }
   /** For debugging reasons*/
   bool sanityCheck() const {

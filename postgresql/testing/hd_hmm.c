@@ -12,9 +12,6 @@
 #include <hmm/gmm.hpp>
 #include <hmm/kld.hpp>
 
-#ifdef PG_MODULE_MAGIC
-PG_MODULE_MAGIC;
-#endif
 
 //char * models = "models";
 //char * modelids = "modelids";
@@ -111,7 +108,7 @@ compare_hmm( PG_FUNCTION_ARGS ){
   if (ninits2 * ninits2 != ntransitions2) 
     elog(INFO, "Wrong number of transitions: %d, %d", ninits2 * ninits2, ntransitions2);
 
-return compareHMMs(
+return hd_hmm_compare(
 gmmdata1, idsdata1, weightsdata1, ngmm1, transitionsdata1, initsdata1, ninits1,
 gmmdata2, idsdata2, weightsdata2, ngmm2, transitionsdata2, initsdata2, ninits2);
   //values = (Datum *) palloc(ncolumns * sizeof(Datum));

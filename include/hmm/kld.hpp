@@ -2,7 +2,7 @@
 #define __INCLUDE_HMM_KLD_HPP__
 #ifdef __cplusplus
 #include <armadillo>
-#include <hmm/hmm.hpp>
+#include <hmm.hpp>
 #include <cmath>
 #include <algorithm>
 
@@ -490,22 +490,11 @@ struct HMMComp{
    }
 };
 
-extern "C" {
-double
-compareHMMs(
-GM_c* gms1, int * ids1, double * weights1, int gm_n1, double * transitions1, double * inits1, int state_n1,
-GM_c* gms2, int * ids2, double * weights2, int gm_n2, double * transitions2, double * inits2, int state_n2) {
- return HMMComp::sMrandomWalk(
- HMM(gms1, ids1, weights1, gm_n1, transitions1, inits1, state_n1),
- HMM(gms2, ids2, weights2, gm_n2, transitions2, inits2, state_n2)
- );
- 
- }
-}
+
 #endif //__cplusplus
 #ifndef __cplusplus
 double
-compareHMMs(
+hd_hmm_compare(
 GM_c* gms1, int * ids1, double * weights1, int gm_n1, double * transitions1, double * inits1, int state_n1,
 GM_c* gms2, int * ids2, double * weights2, int gm_n2, double * transitions2, double * inits2, int state_n2);
 #endif

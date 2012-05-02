@@ -1,5 +1,6 @@
 INCLUDE_DIRECTORIES(
 ${GEDLIB_SOURCE_DIR}/include
+${GEDLIB_SOURCE_DIR}/include/hmm
 )
 
 
