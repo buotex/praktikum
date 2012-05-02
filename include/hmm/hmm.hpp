@@ -41,6 +41,10 @@ class HMM {
   /** Loglikelihood of the calculated model for the given data*/
   double pprob_;
 
+  HMM() {
+  }
+  HMM(GM_c* GMs, int * ids, double * weights, double * transitions, double * inits);
+
 
   std::vector<arma::mat> gammaLts_;
   arma::mat alpha_;
@@ -143,6 +147,19 @@ class HMM {
 
 };
 
+HMM::HMM(GM_c* gms, int * ids, double * weights, int gm_n, double * transitions, double * inits, int state_n) {
+    
+    BModels_.resize(state_n);
+    for (int i = 0; i < gm_n; ++i) {
+      BModels_[ids[i]].insertGM(GM(gms[i]), weights[i]);
+    }
+    
+    
+    A_ =  arma::mat(transitions, state_n, state_n);
+    pi_ = arma::rowvec(inits, state_n);
+  
+  
+  }
 void 
 HMM::init(const std::vector<GMM> & B, unsigned int seed = 0, double eps = 1E-4) {
 

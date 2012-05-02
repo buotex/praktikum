@@ -1,3 +1,11 @@
+#ifndef __INCLUDE_HMM_GMM_HPP__
+#define __INCLUDE_HMM_GMM_HPP__
+typedef struct GM_c {
+  double mean[3];
+  double sigma[5];
+} GM_c;
+
+#ifdef __cplusplus
 #include <algorithm>
 #include <armadillo>
 #include <vector>
@@ -7,8 +15,6 @@
 #undef _USE_MATH_DEFINES
 #endif
 
-#ifndef __INCLUDE_HMM_GMM_HPP__
-#define __INCLUDE_HMM_GMM_HPP__
 
 /** 
  *  \class GM
@@ -149,7 +155,10 @@ class GMM {
     return goodIndices;
   }
   
-
+  void insertGM(const GM & gm, double weight) {
+    mixture_.push_back(gm);
+    weights_.insert_rows(weights_.n_rows, weight);
+  }
   
   bool  
     updateGM(unsigned int index, double weight, const arma::vec & mu, const arma::mat & sigma) {
@@ -451,4 +460,5 @@ struct GMMCreator {
       return BModels;
     }
 };
+#endif //ifdef __cplusplus
 #endif
