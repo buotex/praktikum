@@ -2,10 +2,11 @@
 #define __INCLUDE_HMM_GMM_HPP__
 typedef struct GM_c {
   double mean[3];
-  double sigma[5];
+  double sigma[6];
 } GM_c;
 
 #ifdef __cplusplus
+#include <sstream>
 #include <algorithm>
 #include <armadillo>
 #include <vector>
@@ -66,7 +67,11 @@ class GM {
       arma::uvec nonZeroCount = arma::find(sigma != 0);
       sigma_ = sigma;
       if (arma::det(sigma_) <= 0) {
-        throw std::runtime_error("det(sigma) has to be positive");
+        std::stringstream temp;
+        temp << "det(sigma) has to be positive: ";
+        sigma_.print(temp);
+
+        throw std::runtime_error(temp.str());
       }
       invSigma_ = arma::inv(sigma_);
       coeff_ = 1./std::sqrt(std::pow(2. * M_PI, D_) * arma::det(sigma_));
@@ -88,14 +93,21 @@ class GM {
   }
   GM(const GM_c & gmc) {
      arma::mat sigma = arma::mat(3,3);
-     arma::vec mu = arma::vec((double *)&gmc.mean, 3);
+     arma::vec mu = arma::vec(3);
+     mu(0) = gmc.mean[0];
+     mu(1) = gmc.mean[1];
+     mu(2) = gmc.mean[2];
      sigma(0,0) = gmc.sigma[0];
      sigma(0,1) = gmc.sigma[1];
+     sigma(1,0) = gmc.sigma[1];
      sigma(0,2) = gmc.sigma[2];
+     sigma(2,0) = gmc.sigma[2];
      sigma(1,1) = gmc.sigma[3];
      sigma(1,2) = gmc.sigma[4];
+     sigma(2,1) = gmc.sigma[4];
+     sigma(2,2) = gmc.sigma[5];
      setMu(mu);
-     setSigma(arma::symmatu(sigma));
+     setSigma(sigma);
   
   }
   /** For debugging reasons*/
@@ -111,10 +123,13 @@ class GM {
     }
     return sane;
   }
+  void print(std::ostream & user_stream, std::string header = "") const {
+    user_stream << header << std::endl;
+    mu_.print(user_stream, "Mean vector");
+    sigma_.print(user_stream, "Sigma");
+  }
   void print(std::string header = "") const {
-    std::cout << header << std::endl;
-    mu_.print("Mean vector");
-    sigma_.print("Sigma");
+    print(std::cout, header);
   }
 };
 
@@ -170,7 +185,8 @@ class GMM {
   
   void insertGM(const GM & gm, double weight) {
     mixture_.push_back(gm);
-    weights_.insert_rows(weights_.n_rows, weight);
+    weights_.resize(weights_.n_elem + 1);
+    weights_(weights_.n_elem - 1) = weight;
   }
   
   bool  
@@ -196,14 +212,19 @@ class GMM {
     getNumComponents() {
       return mixture_.size();
     }
-  void print(std::string header = "") const {
-    std::cout << header << std::endl;
-    arma::uvec nonZero = arma::find(weights_);
-    std::for_each(nonZero.begin(), nonZero.end(), [this](unsigned int index) {
-        std::cout << "\n weight: " << weights_(index) << std::endl;
-        mixture_[index].print("\t Mixture");
+  void print(std::ostream & user_stream, std::string header = "") const {
+    user_stream << header << std::endl;
+    //arma::uvec nonZero = arma::find(weights_);
+    arma::uvec nonZero = arma::linspace<arma::uvec>(0,weights_.n_elem - 1, weights_.n_elem); //TODO
+    std::for_each(nonZero.begin(), nonZero.end(), [this, &user_stream](unsigned int index) {
+        user_stream << "\n weight: " << weights_(index) << std::endl;
+        mixture_[index].print(user_stream, "\t Mixture");
         });
   }
+  void print(std::string header = "") const{
+    print(std::cout, header);
+  }
+
 
   arma::vec getMu() const {
     arma::mat mu;

@@ -195,7 +195,12 @@ struct HMMComp{
  static 
    double
    expUnscentedTransform(const GMM & gmm1, const GMM & gmm2, double K) {
-     if (gmm1.getD() != gmm2.getD()) throw std::runtime_error("wrong dimensions in the GMMs");
+     if (gmm1.getD() != gmm2.getD()) {
+       std::stringstream temp;
+       temp << "wrong dimensions in the GMMs: ";
+       temp << gmm1.getD() << " " << gmm2.getD();
+       throw std::runtime_error(temp.str());
+     }
      unsigned int d = gmm1.getD();
      arma::vec weights = gmm1.getWeights();
      double val = 1.;
@@ -494,7 +499,7 @@ struct HMMComp{
 #endif //__cplusplus
 #ifndef __cplusplus
 double
-hd_hmm_compare(
+compareHMMs(
 GM_c* gms1, int * ids1, double * weights1, int gm_n1, double * transitions1, double * inits1, int state_n1,
 GM_c* gms2, int * ids2, double * weights2, int gm_n2, double * transitions2, double * inits2, int state_n2);
 #endif

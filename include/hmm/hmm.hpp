@@ -111,13 +111,16 @@ private:
   }
   public:
   void
-    print(std::string header = "") {
-      A_.print("A");
+    print(std::ostream& user_stream, std::string header = "") const {
+      A_.print(user_stream, "A");
       for (size_t i = 0; i < BModels_.size(); ++i) {
-        BModels_[i].print("B");
+        BModels_[i].print(user_stream, "B");
       }
-      pi_.print("pi");
+      pi_.print(user_stream, "pi");
 
+    }
+    void print(std::string header= "") const {
+      print(std::cout, header);
     }
   double baumWelch(const arma::mat & data, const std::vector<GMM> & B, unsigned int seed);
   double baumWelch(const arma::mat & data, unsigned int seed);
@@ -148,7 +151,7 @@ private:
 };
 
 HMM::HMM(GM_c* gms, int * ids, double * weights, int gm_n, double * transitions, double * inits, int state_n) {
-    
+    N_ = state_n; 
     BModels_.resize(state_n);
     for (int i = 0; i < gm_n; ++i) {
       BModels_[ids[i]].insertGM(GM(gms[i]), weights[i]);

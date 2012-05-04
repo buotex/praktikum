@@ -26,7 +26,7 @@ libhmm.o: hmm/kld.cpp Makefile
 		c++ $(CXXFLAGS) -o libhmm.o -c hmm/kld.cpp
 
 hd_hmm.so: $(OBJ)
-		c++ -shared $(OBJ) ${LDFLAGS}
+		cc -shared -o hd_hmm.so $(OBJ) ${LDFLAGS}
 
 clean:
 	rm *.o *.so
