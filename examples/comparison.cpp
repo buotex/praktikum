@@ -1,3 +1,4 @@
+#include <time.h>
 #include <pdb_utilities.hpp>
 #include <hmm/hmm.hpp>
 #include <hmm/kld.hpp>
@@ -40,19 +41,21 @@ rotZ(const arma::mat & data, double phi) {
 int main() {
   //HMM hmm, hmm2, hmm3, hmm4, hmm5;
 
+  srand((int)time(NULL));
   //define the number of clusters to be defined in kmeans
-  unsigned int numClusters = 3;
+  unsigned int numClusters = 1;
   KMeansFunctor kmeansFunctor(numClusters);
 
   //define min and max values for the number of Gaussian Models that should be used when creating a GMM
   unsigned int kmin = 1;
-  unsigned int kmax = 1;
+  unsigned int kmax = 5;
   GMMCreator creator(kmin, kmax);
   
   
 
   //load these protein files as a base for our experiments
-  HMM hmm1 = buildHMM(parsePdb("data/2HDZ.pdb"), creator, kmeansFunctor);
+  HMM hmm1 = buildHMM(parsePdb("data/100D.pdb"), creator, kmeansFunctor, (int)rand());
+  hmm1.print();
   HMM hmm2 = buildHMM(parsePdb("data/3F27.pdb"), creator, kmeansFunctor);
 
   //How robust is our algorithm regarding to shuffling? Keep in mind, that HMMs are time-dependent and will change when

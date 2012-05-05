@@ -34,6 +34,20 @@ class GM {
  
 
   public:
+
+  GM_c getGM_c() const {
+    GM_c gmc;
+    gmc.mean[0] = mu_(0);
+    gmc.mean[1] = mu_(1);
+    gmc.mean[2] = mu_(2);
+    gmc.sigma[0] = sigma_(0,0);
+    gmc.sigma[1] = sigma_(0,1);
+    gmc.sigma[2] = sigma_(0,2);
+    gmc.sigma[3] = sigma_(1,1);
+    gmc.sigma[4] = sigma_(1,2);
+    gmc.sigma[5] = sigma_(2,2);
+    return gmc;
+  }
   unsigned int const & getD() const {
     return D_;
   }
@@ -273,9 +287,9 @@ class GMM {
       double Lold;
       double Lnew;
 
-
       arma::mat u(n,kmax);
       arma::mat w(n,kmax);
+      w.fill(0.);
       std::vector<GM> mixtureCandidate = initMixtureModel(data, kmax);
       arma::vec a(kmax);
       a.fill(1./kmax);
@@ -310,6 +324,12 @@ class GMM {
             w(nonNull, colId) = w(nonNull, colId) / scalingVec.elem(nonNull);
             arma::uvec failure= arma::find(w != w);
             if (failure.n_elem > 0) {
+              std::stringstream temp;
+              temp << "m: " << m << std::endl;
+              a.print(temp, "a");
+              u.print(temp, "u");
+              w.print(temp, "w");
+          throw std::runtime_error(temp.str());
               std::cout << "m: " << m <<std::endl;
               w.print("3");
               scalingVec.print("scaling");
@@ -353,6 +373,7 @@ class GMM {
 
               arma::uvec failure= arma::find(u != u);
               if (failure.n_elem > 0) {
+          throw std::runtime_error("wtf3");
                 std::cout << m << " m" << std::endl;
                 mixtureCandidate[m].print("Candidate");
                 newSigma.print("sigma");
@@ -373,6 +394,7 @@ class GMM {
           }
           for (unsigned int m = 0; m < k; ++m) {
             if (a(m) <= 0) {
+              throw std::runtime_error("wtf2");
               //std::cout << "BLUB" << std::endl;
             }
             Lnew += 0.5 * N * std::log(n * a(m) / 12);
@@ -488,7 +510,8 @@ struct GMMCreator {
       for (unsigned int i = 0; i < numLabels; ++i){
         arma::uvec indices = arma::find(labels == i);
         if (indices.n_elem > 0) {
-          BModels.push_back(GMM(data.cols(indices), kmin_, kmax_));
+          GMM gmm(data.cols(indices), kmin_, kmax_);
+          BModels.push_back(gmm);
         }
       }
       return BModels;

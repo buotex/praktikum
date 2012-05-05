@@ -2,6 +2,7 @@
 #define __INCLUDE_HMM_KLD_HPP__
 #ifdef __cplusplus
 #include <armadillo>
+#include <kmeans.hpp>
 #include <hmm.hpp>
 #include <cmath>
 #include <algorithm>
@@ -498,10 +499,23 @@ struct HMMComp{
 
 #endif //__cplusplus
 #ifndef __cplusplus
+void * constructHMM(double * matrix, int ndata, int nclusters);
+void deleteHMM(void* hmm);
+void * getModels(void * hmm, int * nelems);
+void * getModelIds(void * hmm, int * nelems);
+void * getWeights(void * hmm, int * nelems);
+void * getTransitions(void * hmm, int * nelems);
+void * getInits(void * hmm, int * nelems);
+
+
 double
 compareHMMs(
+int tryLinearTransform,
 GM_c* gms1, int * ids1, double * weights1, int gm_n1, double * transitions1, double * inits1, int state_n1,
 GM_c* gms2, int * ids2, double * weights2, int gm_n2, double * transitions2, double * inits2, int state_n2);
 #endif
+
+
+
 
 #endif //__INCLUDE_HMM_KLD_HPP__

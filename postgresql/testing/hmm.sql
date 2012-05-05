@@ -17,7 +17,7 @@ CREATE TABLE test_hmm (
 
 
 
-CREATE OR REPLACE FUNCTION hd_hmm_compare(hmm, hmm)
+CREATE OR REPLACE FUNCTION hd_hmm_compare(hmm, hmm, int default 1)
 RETURNS double precision
 AS '$libdir/hd_hmm', 'hd_hmm_compare'
 LANGUAGE 'C' IMMUTABLE STRICT;
@@ -43,14 +43,15 @@ LANGUAGE 'C' IMMUTABLE STRICT;
 --));
 --
 --SELECT * from test_hmm;
-SELECT hd_hmm_compare(T1.hmm, T2.hmm) from test_hmm as T1, test_hmm as T2;
 
-CREATE OR REPLACE FUNCTION hd_hmm_create(int)
+CREATE OR REPLACE FUNCTION hd_hmm_create(int,int)
 RETURNS hmm
 AS '$libdir/hd_hmm', 'hd_hmm_create'
 LANGUAGE 'C' IMMUTABLE STRICT;
 
-INSERT INTO test_hmm SELECT hd_hmm_create(1) AS value;
+INSERT INTO test_hmm SELECT hd_hmm_create(1,1) AS value;
+SELECT hd_hmm_compare(T1.hmm, T2.hmm, 1) from test_hmm as T1, test_hmm as T2;
+
 select * from test_hmm;
 
 --DROP TYPE gm CASCADE;

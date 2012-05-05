@@ -1,9 +1,10 @@
+#ifndef __INCLUDE_HMM_HMM_HPP__
+#define __INCLUDE_HMM_HMM_HPP__
+#ifdef __cplusplus
 #include <gmm.hpp>
 #include <armadillo>
 #include <assert.h>
 
-#ifndef __INCLUDE_HMM_HMM_HPP__
-#define __INCLUDE_HMM_HMM_HPP__
 
 /** 
  *  \class HMM
@@ -122,6 +123,33 @@ private:
     void print(std::string header= "") const {
       print(std::cout, header);
     }
+  
+  int
+    countGMs() {
+      int sum = 0;
+      for (size_t i = 0; i < BModels_.size(); ++i) {
+        sum += BModels_[i].n_gm();
+      }
+      return sum;
+    }
+  int getN() {
+    return N_;
+  }
+  std::vector<GMM> 
+  getModels() const {
+    return BModels_;
+  }
+  arma::mat
+  getTransitions() const {
+    return A_;
+  }
+  arma::rowvec
+  getInits() const {
+    return pi_;
+  }
+
+
+
   double baumWelch(const arma::mat & data, const std::vector<GMM> & B, unsigned int seed);
   double baumWelch(const arma::mat & data, unsigned int seed);
   /** The function that should be called most of the time, calculating the best parameters given data
@@ -130,7 +158,7 @@ private:
   double baumWelchCached(const arma::mat & data, const std::vector<GMM> & B, unsigned int seed);
   double baumWelchCached(const arma::mat & data, unsigned int seed);
   //Warning: This will invalidate the internal data other than the relevant model data A, B and pi.  private:
-  
+
   private:
   void init(const std::vector<GMM> & B, unsigned int seed, double eps);
   void allocateMemory(unsigned int);
@@ -151,18 +179,18 @@ private:
 };
 
 HMM::HMM(GM_c* gms, int * ids, double * weights, int gm_n, double * transitions, double * inits, int state_n) {
-    N_ = state_n; 
-    BModels_.resize(state_n);
-    for (int i = 0; i < gm_n; ++i) {
-      BModels_[ids[i]].insertGM(GM(gms[i]), weights[i]);
-    }
-    
-    
-    A_ =  arma::mat(transitions, state_n, state_n);
-    pi_ = arma::rowvec(inits, state_n);
-  
-  
+  N_ = state_n; 
+  BModels_.resize(state_n);
+  for (int i = 0; i < gm_n; ++i) {
+    BModels_[ids[i]].insertGM(GM(gms[i]), weights[i]);
   }
+
+
+  A_ =  arma::mat(transitions, state_n, state_n);
+  pi_ = arma::rowvec(inits, state_n);
+
+
+}
 void 
 HMM::init(const std::vector<GMM> & B, unsigned int seed = 0, double eps = 1E-4) {
 
@@ -190,7 +218,7 @@ HMM::allocateMemory(unsigned int nData) {
   beta_ = arma::mat(N_, T_);
   xi_ = arma::cube(T_-1, N_, N_);
   B_ = arma::mat(T_, N_);
-    gammaLts_.resize(N_);
+  gammaLts_.resize(N_);
 
   for (unsigned int i = 0; i < N_; ++i) {
     unsigned int numComponents = (unsigned int) BModels_[i].getNumComponents();
@@ -215,7 +243,7 @@ HMM::cacheProbabilities(const arma::mat & data) {
       if (!test.is_finite()) {
         arma::vec weights = BModels_[i].getWeights();
         for (unsigned l = 0; l < weights.n_elem; ++l) {
-        arma::vec test2 = gammaLts_[i].col(l); 
+          arma::vec test2 = gammaLts_[i].col(l); 
           if (!test2.is_finite()) {
             const GM & gm = BModels_[i].getGM(l);
             gm.print("gm");
@@ -507,5 +535,5 @@ HMM::baumWelchCached(const arma::mat & data, const std::vector<GMM> & B, unsigne
 
 }
 
-
+#endif //ifdef __cplusplus
 #endif

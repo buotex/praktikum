@@ -141,7 +141,8 @@ ProteinChainFunctor {
  * */
 template <typename ClusteringFunctor>
 HMM
-buildHMM(const ESBTL::Default_system & system, GMMCreator creator, ClusteringFunctor func) {
+buildHMM(const ESBTL::Default_system & system, GMMCreator creator, ClusteringFunctor func, int seed = 0) {
+
   arma::mat data;
   arma::urowvec labels;
   HMM hmm;
@@ -157,7 +158,7 @@ buildHMM(const ESBTL::Default_system & system, GMMCreator creator, ClusteringFun
     labels = arma::join_rows(labels, templabels);
     offset = arma::max(labels);
   }
-  hmm.baumWelchCached(data, creator(data, labels));
+  hmm.baumWelchCached(data, creator(data, labels), seed);
   return hmm;
 }
 

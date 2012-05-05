@@ -19,15 +19,88 @@
 //char * transitions = "transitions";
 //char * inits = "inits";
 
+int checkString(char * cstring) {
+  if (strcmp("models", cstring) == 0)
+    return 0;
+  if (strcmp("modelids", cstring) == 0)
+    return 1;
+
+  if (strcmp("weights", cstring) == 0)
+    return 2;
+  
+  if (strcmp("transitions", cstring) == 0)
+    return 3;
+ 
+  if (strcmp("inits", cstring) == 0)
+    return 4;
+  return -1;
+}
+
+void
+extractHMM(double * matrix, int ndata, Datum * values, bool * nulls, TupleDesc tupdesc, int nclusters ) {
+  void * hmm = constructHMM(matrix, ndata, nclusters);
+  int i;
+
+  elog(INFO,"hmm: Blub2");
+  for (i = 0; i < tupdesc->natts; ++i) {
+    int id = checkString(tupdesc->attrs[i]->attname.data);
+    if (id > 4 || id < 0)
+      continue;
+    Oid elmtype = get_base_element_type(tupdesc->attrs[i]->atttypid);
+    int nelems;
+    int16 elmlen;
+    bool elmbyval;
+    char elmalign;
+    get_typlenbyvalalign(elmtype, &elmlen, &elmbyval, &elmalign);
+
+    Datum * element;
+    elog(INFO,"hmm: Blub3");
+    switch(id) {
+      case 0:
+        element = (Datum*) getModels(hmm, &nelems);
+        nulls[i] = false;
+        break;
+      case 1:
+        element = (Datum*) getModelIds(hmm, &nelems);
+        nulls[i] = false;
+        break;
+      case 2:
+        element = (Datum*) getWeights(hmm, &nelems);
+        nulls[i] = false;
+        break;
+      case 3:
+        element = (Datum*) getTransitions(hmm, &nelems);
+        nulls[i] = false;
+        break;
+      case 4:
+        element = (Datum*) getInits(hmm, &nelems);
+        nulls[i] = false;
+        break;
+    }
+    elog(INFO, "wtf %p", element);
+
+    values[i] = PointerGetDatum(construct_array(element, nelems, elmtype, elmlen, elmbyval, elmalign));
+    elog(INFO,"hmm: Blub9");
+  }
+
+
+
+  deleteHMM(hmm);
+
+}
+
+
 PG_FUNCTION_INFO_V1 ( hd_hmm_create );
 Datum
 hd_hmm_create ( PG_FUNCTION_ARGS ){
   TupleDesc            tupdesc;
   HeapTuple             tuple;
-  AttInMetadata       *attinmeta;
+  //AttInMetadata       *attinmeta;
   int32 gid = PG_GETARG_INT32(0);
-  Datum values[6];
-  bool nulls[6];
+  int32 nclusters = PG_GETARG_INT32(1);
+  Datum * values;
+  bool * nulls;
+  int i;
 
   double x, y, z;
   char sql[100];
@@ -36,7 +109,7 @@ hd_hmm_create ( PG_FUNCTION_ARGS ){
 
 
   sprintf(sql, "SELECT st_x(node), st_y(node), st_z(node) FROM graph WHERE gid=%d;", gid);
-  
+
   if (get_call_result_type(fcinfo, NULL, &tupdesc) != TYPEFUNC_COMPOSITE)
     elog(ERROR, "hd_hmm_create: return type must be a row type");
 
@@ -45,7 +118,7 @@ hd_hmm_create ( PG_FUNCTION_ARGS ){
   ret = SPI_execute(sql, true, 0);
   if (ret < 0)
     elog(ERROR, "hd_hmm_create: SPI_execute returned %d", ret);
-  
+
   proc = SPI_processed;
   elog (INFO, "hd_hmm_create: there are %d rows", proc);
   double * matrix = malloc(3 * proc *  sizeof(double));
@@ -58,13 +131,10 @@ hd_hmm_create ( PG_FUNCTION_ARGS ){
     bool x_isnull, y_isnull, z_isnull;
     int i;
     for (i = 0; i < proc; ++i) {
-  elog(INFO, "Blub0");
       HeapTuple inputtuple = inputtuptable->vals[i];
-  elog(INFO, "Blub0");
       x = DatumGetFloat8(SPI_getbinval(inputtuple, inputtupdesc, 1, &x_isnull));
       y = DatumGetFloat8(SPI_getbinval(inputtuple, inputtupdesc, 2, &y_isnull));
       z = DatumGetFloat8(SPI_getbinval(inputtuple, inputtupdesc, 3, &z_isnull));
-  elog(INFO, "Blub0");
       if (x_isnull || y_isnull || z_isnull) {
         elog(ERROR, "hd_triangulate: NULL pointer error!");
         PG_RETURN_NULL();
@@ -72,53 +142,57 @@ hd_hmm_create ( PG_FUNCTION_ARGS ){
       matrix[3 * i] = x;
       matrix[3 * i + 1] = y;
       matrix[3 * i + 2] = z;
-  elog(INFO, "Blub0");
     }
   }
-  elog(INFO, "Blub0");
 
-  SPI_finish();
+  /*
 
-  free(matrix);
-  elog(INFO, "Blub");
-
-  ArrayType *result;
-  Datum * element = palloc(2 * sizeof(Datum));
-  element[0] = Float8GetDatum(3.0);
-  element[1] = Float8GetDatum(2.7);
-  int nelems = 2;
-  Oid elmtype = 
-  get_base_element_type(tupdesc->attrs[3]->atttypid);
+     ArrayType *result;
+     Datum * element = palloc(2 * sizeof(Datum));
+     element[0] = Float8GetDatum(3.0);
+     element[1] = Float8GetDatum(2.7);
+     int nelems = 2;
+     Oid elmtype = 
+     get_base_element_type(tupdesc->attrs[3]->atttypid);
   //tupdesc->attrs[3]->atttypid;
   if (!OidIsValid(elmtype))
-	    elog(INFO,"hmm: oid of current tuple is NULL");
+  elog(INFO,"hmm: oid of current tuple is NULL");
 
   int16 elmlen;
   bool elmbyval;
   char elmalign;
   get_typlenbyvalalign(elmtype, &elmlen, &elmbyval, &elmalign);
 
-
-  elog(INFO, "Blub2");
-  elog(INFO, "%d, %d, %d, %d",elmtype, tupdesc->attrs[2]->atttypid, tupdesc->attrs[3]->atttypid, tupdesc->attrs[4]->atttypid);
-  elog(INFO, "%d, %d, %c", elmlen, elmbyval, elmalign);
-  elog(INFO, "%f, %f", element[0], element[1]);
   result = construct_array(element, nelems, elmtype, elmlen, elmbyval, elmalign);
-  elog(INFO, "Blub2");
-  values[3] = PointerGetDatum(result);
-  ArrayType * test = DatumGetArrayTypeP(values[3]);
-  double * test2 = (double *) ARR_DATA_PTR(test);
-  elog(INFO, "%f, %f", test2[0], test2[1]);
-  nulls[0] = true;
-  nulls[1] = true;
-  nulls[2] = true;
-  nulls[3] = false;
-  nulls[4] = true;
-  nulls[5] = true;
-  elog(INFO, "Blub2");
-  tuple = heap_form_tuple(tupdesc, values, nulls);
-  elog(INFO, "Blub2");
 
+*/
+  elog(INFO,"hmm: Blub1");
+  values = palloc(sizeof(Datum) * tupdesc->natts);
+  nulls = palloc(sizeof(bool) * tupdesc->natts);
+  for (i = 0; i < tupdesc->natts; ++i) {
+    nulls[i] = true;
+  }
+
+  extractHMM(matrix,proc, values, nulls, tupdesc, nclusters );
+  elog(INFO,"hmm: Blub4");
+  /*elog(INFO, "Blub2");
+    values[3] = PointerGetDatum(result);
+    ArrayType * test = DatumGetArrayTypeP(values[3]);
+    double * test2 = (double *) ARR_DATA_PTR(test);
+    elog(INFO, "%f, %f", test2[0], test2[1]);
+    nulls[0] = true;
+    nulls[1] = true;
+    nulls[2] = true;
+    nulls[3] = false;
+    nulls[4] = true;
+    nulls[5] = true;
+    elog(INFO, "Blub2");
+    elog(INFO, "Blub2");
+    */
+  tuple = heap_form_tuple(tupdesc, values, nulls);
+  elog(INFO,"hmm: Blub5");
+  SPI_finish();
+  free(matrix);
   PG_RETURN_DATUM(HeapTupleGetDatum(tuple));
 
 }
@@ -128,26 +202,9 @@ Datum
 hd_hmm_compare( PG_FUNCTION_ARGS ){
   HeapTupleHeader record1 = PG_GETARG_HEAPTUPLEHEADER(0);
   HeapTupleHeader record2 = PG_GETARG_HEAPTUPLEHEADER(1);
+  int32 choice = PG_GETARG_INT32(2);
   bool isnull;
   int         i = 0;
-  /*
-     char        *desired_col_name;
-     Oid tupType1, tupType2;
-  //int32 tupTypmod;
-  //TupleDesc   tupdesc;
-  //HeapTupleData   tuple;
-  //Datum *values;
-  bool *nulls;
-  int nitems1;
-  int nitems2;
-
-
-  int         ncolumns;
-  //tupType = HeapTupleHeaderGetTypeId(record);
-  //tupTypmod = HeapTupleHeaderGetTypMod(record);
-  //tupdesc = lookup_rowtype_tupdesc(tupType, tupTypmod);
-  //ncolumns = tupdesc->natts;
-  */
   ArrayType * gmm1 = DatumGetArrayTypeP(GetAttributeByName(record1, "models", &isnull));
   ArrayType * modelids1 = DatumGetArrayTypeP(GetAttributeByName(record1, "modelids", &isnull));
   ArrayType * weights1 = DatumGetArrayTypeP(GetAttributeByName(record1, "weights", &isnull));
@@ -212,6 +269,7 @@ hd_hmm_compare( PG_FUNCTION_ARGS ){
     elog(INFO, "Wrong number of transitions: %d, %d", ninits2 * ninits2, ntransitions2);
 
   float8 similarity = compareHMMs(
+      choice,
       gmmdata1, idsdata1, weightsdata1, ngmm1, transitionsdata1, initsdata1, ninits1,
       gmmdata2, idsdata2, weightsdata2, ngmm2, transitionsdata2, initsdata2, ninits2);
   PG_RETURN_FLOAT8(similarity);

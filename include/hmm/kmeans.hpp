@@ -65,7 +65,7 @@ kmeansLoop(const arma::mat & data, arma::mat & means, KMeansParams params) {
         meanCounter.print("meanCounter");
         means.print("means");
       }
-      catch(const std::logic_error & e) {
+      catch(const std::exception & e) {
         std::cout << "Purging :" << (double) purgingThreshold << std::endl;
         meanCounter.print("meanCounter");
         means.print("means");
