@@ -241,9 +241,7 @@ struct HMMComp{
 
      for (unsigned int k = 0; k < N; ++k) {
        sum += u(indices(k)) * invNorm * ((double)N - (double) k - 0.5) / double(N);
-       //std::cout << "Index " << k << " " << u(indices(k)) << std::endl;
      }
-     //std::cout << "sum: " << sum << std::endl;
      return 1. - 2. * sum; 
    }
 
@@ -253,7 +251,7 @@ struct HMMComp{
    double
    normalizedGiniIndex(const arma::vec & u) {
      double N = (double) u.n_elem;
-     if (N == 1. || arma::norm(u,1) == 0) return 0.;
+     if (N == 1. || arma::norm(u,1) == 0) return 1.;
      return N/(N-1.) * giniIndex(u);
    }
    
@@ -313,23 +311,16 @@ struct HMMComp{
      if (ES != 0.) {
        Qij /= ES;
      }
-     //Sij.print("Sij");
-     //Qij.print("Qij");
      arma::vec Hi = arma::zeros(hmm1.N_, 1);
      arma::vec Hj = arma::zeros(hmm2.N_, 1);
 
      for (unsigned int i = 0; i < hmm1.N_; ++i) {
        Hi(i) = normalizedGiniIndex(Qij.row(i).t());
 
-       //Hi(i) = hoyerMeasure(Qij.row(i).t());
      }
      for (unsigned int j = 0; j < hmm2.N_; ++j) {
        Hj(j) = normalizedGiniIndex(Qij.col(j));
-       //Hj(j) = hoyerMeasure(Qij.col(j));
      }
-     //Hi.print("Hi");
-     //Hj.print("Hj");
-
      double similarity = 0.5 * (1./double(hmm1.N_) * arma::accu(Hi) + 1./double(hmm2.N_) * arma::accu(Hj));;
 
      return ES / std::max(hmm1.N_, hmm2.N_) * similarity;

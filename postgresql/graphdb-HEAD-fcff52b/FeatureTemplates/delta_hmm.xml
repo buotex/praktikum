@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<feature noautoinstall="False">
+<name>Delta_HMM</name>
+<description>
+Compare to a list of HMMs
+</description>
+<datatype>double precision[]</datatype>
+<gidcount>1</gidcount>
+<key>delta_hmm</key>
+<query>
+<![CDATA[
+SELECT hd_hmm_compare_list(%s, $hmmlist, $lineartrans) as value;
+]]>
+</query>
+<parameters>
+<parameter>
+<name>hmmlist</name>
+    <description>
+The list of gids whose HMM to compare with (Ex: {1,2,3})
+    </description>
+    <datatype>string</datatype>
+    </parameter>
+    <parameter>
+    <name>lineartrans</name>
+    <description>
+    Choose if a reverse linear transformation should be made before comparison (0 = don't, 1 = do)
+    </description>
+    <datatype>integer</datatype>
+    </parameter>
+    </parameters>
+    <dependencies>
+    <feature>hmm_lib</feature>
+    <function>
+    <![CDATA[
+CREATE OR REPLACE FUNCTION hd_hmm_compare(hmm_type, hmm_type, int)
+    RETURNS double precision
+    AS '$libdir/hdgraphdb/hmm_lib', 'hd_hmm_compare'
+    LANGUAGE 'C' IMMUTABLE STRICT;
+    ]]>
+    </function>
+    <function>
+    <![CDATA[
+    CREATE OR REPLACE FUNCTION hd_hmm_get_hmm(hmm1 in integer)
+RETURNS TABLE(hmm hmm_type) 
+    AS 
+    $$
+    BEGIN
+    RETURN QUERY SELECT * FROM coalesce((SELECT value FROM feature_hmm_lib_values WHERE gid(value) = hmm1),
+            hd_hmm_create(hmm1, 3)); 
+END;
+$$
+LANGUAGE 'PLPGSQL' STRICT;
+]]>
+</function>
+<function>
+    <![CDATA[    
+CREATE OR REPLACE FUNCTION hd_hmm_compare_single(hmm1 in integer, hmm2 in integer, choice in integer)
+    RETURNS double precision[] AS $$
+    DECLARE
+    s_similarity double precision;
+    v_similarity double precision[] = ARRAY[]::double precision[];
+    BEGIN
+    IF(SELECT COUNT(*) FROM metadata where gid = hmm1) = 0 THEN 
+    RAISE EXCEPTION 'Nonexistent gid --> %', hmm1;
+    END IF;
+    IF(SELECT COUNT(*) FROM metadata where gid = hmm2) = 0 THEN 
+    RAISE EXCEPTION 'Nonexistent gid --> %', hmm2;
+    END IF;
+    FOR s_similarity IN
+    SELECT result_list.similarity FROM ( SELECT hd_hmm_compare(hmm1val.*, hmm2val.*, choice) AS similarity FROM ( SELECT
+    * FROM hd_hmm_get_hmm(hmm1)) AS hmm1val,
+    (SELECT * FROM hd_hmm_get_hmm(hmm2)) AS hmm2val
+                ) AS result_list
+    LOOP
+    v_similarity := array_append(v_similarity, s_similarity);
+    END LOOP;
+    RETURN v_similarity;
+    END;
+    $$
+    LANGUAGE 'PLPGSQL' STRICT;
+    ]]>
+    </function>
+    <function>
+    <![CDATA[
+CREATE OR REPLACE FUNCTION hd_hmm_compare_list(hmm1 in integer, hmm_string in text, choice in integer)
+    RETURNS SETOF double precision[] AS $$
+    DECLARE hmm_list integer[] := hmm_string::integer[];
+    DECLARE hmm2 integer;
+    BEGIN
+    FOREACH hmm2 IN ARRAY hmm_list LOOP
+    RETURN QUERY SELECT * FROM hd_hmm_compare_single(hmm1, hmm2, choice);
+    END LOOP;
+    RETURN;
+    END;
+    $$
+    LANGUAGE 'PLPGSQL' STRICT;
+
+    ]]>
+    </function>
+    </dependencies>
+    </feature>

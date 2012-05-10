@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<feature noautoinstall="False">
+    <name>
+        Hidden Markov Model
+    </name>
+    <description>
+        Create Hidden Markov Model of a graph
+    </description>
+    <datatype>hmm_type</datatype>
+    <gidcount>1</gidcount>
+    <key>hmm_lib</key>
+    <query>
+        SELECT hd_hmm_create(%s, $numclusters) as value;
+    </query>
+    <parameters>
+        <parameter>
+            <name>numclusters</name>
+            <description>The number of clusters used to create the HMM</description>
+            <datatype>integer</datatype>
+        </parameter>
+    </parameters>
+    <dependencies>
+        <library/>
+        <type>
+            <![CDATA[
+            DROP TYPE IF EXISTS gm CASCADE;
+            CREATE FUNCTION gm_in(cstring)
+            RETURNS gm
+            AS '$libdir/hdgraphdb/hmm_lib', 'gm_in'
+            LANGUAGE C IMMUTABLE STRICT;
+
+            CREATE FUNCTION gm_out(gm)
+            RETURNS cstring
+            AS '$libdir/hdgraphdb/hmm_lib', 'gm_out'
+            LANGUAGE C IMMUTABLE STRICT;
+
+            CREATE FUNCTION gm_recv(internal)
+            RETURNS gm
+            AS '$libdir/hdgraphdb/hmm_lib', 'gm_recv'
+            LANGUAGE C IMMUTABLE STRICT;
+
+            CREATE FUNCTION gm_send(gm)
+            RETURNS bytea
+            AS '$libdir/hdgraphdb/hmm_lib', 'gm_send'
+            LANGUAGE C IMMUTABLE STRICT;
+
+            CREATE TYPE gm (
+            internallength = 72,
+            input = gm_in,
+            output = gm_out,
+            receive = gm_recv,
+            send = gm_send,
+            alignment = double
+            );
+            ]]>
+        </type>
+        <type>
+            <![CDATA[
+            DROP TYPE IF EXISTS hmm_type CASCADE;
+            CREATE TYPE hmm_type AS (
+            gid           int,
+            models        gm[],
+            modelids      int[],
+            weights       float8[],
+            transitions   float8[],
+            inits         float8[]
+            );
+            ]]>
+        </type>
+        <function>
+            <![CDATA[
+            CREATE OR REPLACE FUNCTION hd_hmm_create(int, IN int)
+            RETURNS hmm_type
+            AS '$libdir/hdgraphdb/hmm_lib', 'hd_hmm_create'
+            LANGUAGE C IMMUTABLE STRICT; 
+            ]]>
+        </function>
+    </dependencies>
+</feature>

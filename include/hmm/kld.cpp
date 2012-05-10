@@ -15,11 +15,8 @@ extern "C" {
       KMeansParams params(nclusters);
       //temp << nclusters;
       //elog(INFO, temp.str().c_str());
-      elog(INFO, "Blub0"); 
       const arma::mat data(matrix, 3, ndata);
-      elog(INFO, "Blub1"); 
       arma::urowvec labels = kmeans(data, params);
-      elog(INFO, "Blub2"); 
       hmm = new HMM;
       GMMCreator creator(1,5);
       std::vector<GMM> models = creator(data, labels);
@@ -28,7 +25,6 @@ extern "C" {
       //elog(INFO, temp.str().c_str());
       }
       catch(const std::exception& e) { 
-        elog(INFO, "Fuckup");
         elog(INFO, "%s", e.what());
         }
       //catch (...)
@@ -98,7 +94,6 @@ extern "C" {
         arma::vec weights = models[i].getWeights();
         for (size_t j = 0; j < models[i].n_gm(); ++j) {
           element[counter] = Float8GetDatum(weights(j));
-          elog(INFO, "%f", DatumGetFloat8(element[counter]));
           ++counter;
         }
       }
@@ -139,9 +134,6 @@ extern "C" {
         HMM hmm1 = HMM(gms1, ids1, weights1, gm_n1, transitions1, inits1, state_n1);
         HMM hmm2 = HMM(gms2, ids2, weights2, gm_n2, transitions2, inits2, state_n2);
         std::stringstream temp;
-        //hmm1.print(temp);
-        //hmm2.print(temp);
-        //elog(INFO, "%s", temp.str().c_str());
 
         switch(tryLinearTransform) {
           case 0:
