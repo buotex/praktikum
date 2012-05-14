@@ -2,7 +2,6 @@
 #define __INCLUDE_HMM_KLD_HPP__
 #ifdef __cplusplus
 #include <armadillo>
-#include <kmeans.hpp>
 #include <hmm.hpp>
 #include <cmath>
 #include <algorithm>
@@ -490,7 +489,7 @@ struct HMMComp{
 
 #endif //__cplusplus
 #ifndef __cplusplus
-void * constructHMM(double * matrix, int ndata, int nclusters);
+void * constructHMM(double * matrix, int ndata, int nclusters, int * edges, int nedges);
 void deleteHMM(void* hmm);
 void * getModels(void * hmm, int * nelems);
 void * getModelIds(void * hmm, int * nelems);

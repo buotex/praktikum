@@ -24,18 +24,18 @@ int checkString(char * cstring) {
 
   if (strcmp("weights", cstring) == 0)
     return 3;
-  
+
   if (strcmp("transitions", cstring) == 0)
     return 4;
- 
+
   if (strcmp("inits", cstring) == 0)
     return 5;
   return -1;
 }
 
 void
-extractHMM(double * matrix, int ndata, Datum * values, bool * nulls, TupleDesc tupdesc, int nclusters ) {
-  void * hmm = constructHMM(matrix, ndata, nclusters);
+extractHMM(double * matrix, int ndata, Datum * values, bool * nulls, TupleDesc tupdesc, int nclusters, int * edges, int nedges ) {
+  void * hmm = constructHMM(matrix, ndata, nclusters, edges, nedges);
   int i;
 
   for (i = 0; i < tupdesc->natts; ++i) {
@@ -93,9 +93,10 @@ hd_hmm_create ( PG_FUNCTION_ARGS ){
   int32 nclusters = PG_GETARG_INT32(1);
   Datum * values;
   bool * nulls;
-  int i;
+  int i, ndata, nedges;
 
   double x, y, z;
+  int source, target;
   char sql[100];
   int  ret, proc;
   bool isnull;
@@ -113,8 +114,9 @@ hd_hmm_create ( PG_FUNCTION_ARGS ){
     elog(ERROR, "hd_hmm_create: SPI_execute returned %d", ret);
 
   proc = SPI_processed;
-    if (proc < 1)
-      elog(ERROR, "hd_hmm_create: No rows where found, missing gid: %d", gid);
+  ndata = proc;
+  if (proc < 1)
+    elog(ERROR, "hd_hmm_create: No rows where found, missing gid: %d", gid);
   //elog (INFO, "hd_hmm_create: there are %d rows", proc);
   double * matrix = malloc(3 * proc *  sizeof(double));
   if (matrix == 0) 
@@ -131,12 +133,47 @@ hd_hmm_create ( PG_FUNCTION_ARGS ){
       y = DatumGetFloat8(SPI_getbinval(inputtuple, inputtupdesc, 2, &y_isnull));
       z = DatumGetFloat8(SPI_getbinval(inputtuple, inputtupdesc, 3, &z_isnull));
       if (x_isnull || y_isnull || z_isnull) {
-        elog(ERROR, "hd_triangulate: NULL pointer error!");
+        elog(ERROR, "hd_hmm_create: NULL pointer error!");
         PG_RETURN_NULL();
       }
       matrix[3 * i] = x;
       matrix[3 * i + 1] = y;
       matrix[3 * i + 2] = z;
+    }
+  }
+  int * edges = 0;
+  if (nclusters <= 0){ 
+    sprintf(sql, "SELECT source, target FROM edges WHERE gid=%d;", gid);
+    proc = SPI_processed;
+
+    ret = SPI_execute(sql, true, 0);
+    if (ret < 0)
+      elog(ERROR, "hd_hmm_create: SPI_execute returned %d", ret);
+
+    proc = SPI_processed;
+    nedges = proc;
+    if (proc < 1)
+      elog(ERROR, "hd_hmm_create: No rows where found, missing gid: %d", gid);
+    edges = malloc(2 * proc *  sizeof(int));
+    if (edges == 0) 
+      elog(ERROR, "hd_hmm_create: Couldn't alloc memory for edges");
+    if (SPI_tuptable != NULL) {
+
+      TupleDesc inputtupdesc = SPI_tuptable->tupdesc;
+      SPITupleTable *inputtuptable = SPI_tuptable;
+      bool source_isnull, target_isnull;
+      int i;
+      for (i = 0; i < proc; ++i) {
+        HeapTuple inputtuple = inputtuptable->vals[i];
+        source = DatumGetInt32(SPI_getbinval(inputtuple, inputtupdesc, 1, &source_isnull));
+        target = DatumGetInt32(SPI_getbinval(inputtuple, inputtupdesc, 2, &target_isnull));
+        if (source_isnull || target_isnull ) {
+          elog(ERROR, "hd_hmm_create: NULL pointer error!");
+          PG_RETURN_NULL();
+        }
+        edges[2 * i] = source;
+        edges[2 * i + 1] = target;
+      }
     }
   }
 
@@ -153,12 +190,13 @@ hd_hmm_create ( PG_FUNCTION_ARGS ){
       values[i] = Int32GetDatum(gid);
     }
   }
-  extractHMM(matrix,proc, values, nulls, tupdesc, nclusters );
-  
-  
-  
+  extractHMM(matrix, ndata, values, nulls, tupdesc, nclusters, edges, nedges );
+
+
+
   tuple = heap_form_tuple(tupdesc, values, nulls);
   SPI_finish();
+  if (edges != 0) free(edges);
   free(matrix);
   PG_RETURN_DATUM(HeapTupleGetDatum(tuple));
 

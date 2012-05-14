@@ -72,7 +72,7 @@
             CREATE OR REPLACE FUNCTION hd_hmm_create(int, IN int)
             RETURNS hmm_type
             AS '$libdir/hdgraphdb/hmm_lib', 'hd_hmm_create'
-            LANGUAGE C IMMUTABLE STRICT; 
+            LANGUAGE 'C' IMMUTABLE STRICT; 
             ]]>
         </function>
     </dependencies>

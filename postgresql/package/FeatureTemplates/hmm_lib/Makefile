@@ -1,6 +1,6 @@
 PGINCLUDES = `pg_config --includedir-server`
-CFLAGS     = -fpic -fPIC -frounding-math -I.
-LDFLAGS    = -larmadillo
+CFLAGS     = -fpic -fPIC -frounding-math -I. 
+LDFLAGS    = -larmadillo 
 # If you are using shared libraries, make sure this location can be
 # found at runtime (see /etc/ld.so.conf and ldconfig command).
 CXXFLAGS = $(CFLAGS) -std=c++0x
